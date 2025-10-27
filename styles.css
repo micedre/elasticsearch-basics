@@ -1,0 +1,26 @@
+/* Custom styles for Elasticsearch Training website */
+
+.callout-note {
+  border-left-color: #0066cc;
+}
+
+.callout-warning {
+  border-left-color: #ff9900;
+}
+
+.callout-tip {
+  border-left-color: #00cc66;
+}
+
+code {
+  background-color: #f4f4f4;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+pre {
+  background-color: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+}

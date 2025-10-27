@@ -1,0 +1,236 @@
+---
+title: "Download Notebooks"
+---
+
+## Interactive Jupyter Notebooks
+
+Download the hands-on sections as interactive Jupyter notebooks to run the examples on your own machine.
+
+### Prerequisites
+
+Before using these notebooks, ensure you have:
+
+1. Python 3.13+ installed
+2. The project dependencies installed via `uv sync`
+3. An Elasticsearch instance running (see [Getting Started](getting-started.qmd))
+
+### Available Notebooks
+
+All notebooks include:
+- Complete explanations and markdown text
+- Executable Python code examples
+- Ready-to-run queries and operations
+
+---
+
+### 1. Getting Started
+
+Learn how to install Elasticsearch, connect using the Python client, and verify your setup.
+
+**Topics covered:**
+- Installation options (Docker, Cloud, Local)
+- Python client setup
+- Testing connections
+- Troubleshooting common issues
+
+[Download getting-started.ipynb](getting-started.ipynb){.btn .btn-primary download="getting-started.ipynb"}
+
+---
+
+### 2. Indexing & Documents
+
+Master CRUD operations, bulk indexing, and index management.
+
+**Topics covered:**
+- Creating indices with custom settings
+- Indexing single and multiple documents
+- Retrieving, updating, and deleting documents
+- Index aliases and reindexing
+- Best practices for bulk operations
+
+[Download indexing.ipynb](indexing.ipynb){.btn .btn-primary download="indexing.ipynb"}
+
+---
+
+### 3. Search & Queries
+
+Explore Elasticsearch's powerful Query DSL for searching and filtering data.
+
+**Topics covered:**
+- Full-text search with match queries
+- Term and range queries
+- Boolean queries and filters
+- Sorting and pagination
+- Highlighting and source filtering
+- Advanced query techniques
+
+[Download search.ipynb](search.ipynb){.btn .btn-primary download="search.ipynb"}
+
+---
+
+### 4. Aggregations
+
+Learn data analytics and aggregations for powerful insights.
+
+**Topics covered:**
+- Metric aggregations (avg, sum, stats)
+- Bucket aggregations (terms, ranges, histograms)
+- Date histograms for time-series analysis
+- Nested aggregations
+- Pipeline aggregations
+- Practical analytics examples
+
+[Download aggregations.ipynb](aggregations.ipynb){.btn .btn-primary download="aggregations.ipynb"}
+
+---
+
+## Download All Notebooks
+
+:::{.callout-tip}
+## Bulk Download
+You can download all notebooks at once by cloning the repository or using the rendered `_site/` directory after running `quarto render`.
+
+```bash
+# After rendering, notebooks are in the _site directory
+quarto render
+ls _site/*.ipynb
+```
+:::
+
+---
+
+## How to Use the Notebooks
+
+### 1. Activate Virtual Environment
+
+```bash
+# From the project directory
+source .venv/bin/activate  # Unix/macOS
+# or
+.venv\Scripts\activate     # Windows
+```
+
+### 2. Start Jupyter
+
+```bash
+jupyter notebook
+```
+
+This will open Jupyter in your browser.
+
+### 3. Navigate to the Downloaded Notebook
+
+Open the downloaded `.ipynb` file in Jupyter.
+
+### 4. Ensure Elasticsearch is Running
+
+Before executing cells, make sure your Elasticsearch instance is running:
+
+```bash
+# Check if Elasticsearch is responding
+curl http://localhost:9200
+
+# Or start with Docker
+docker run -d --name elasticsearch -p 9200:9200 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=false" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+```
+
+### 5. Run the Cells
+
+Execute cells in order using:
+- `Shift + Enter` to run a cell and move to the next
+- `Ctrl + Enter` to run a cell and stay on it
+- `Cell > Run All` to run all cells
+
+---
+
+## Customizing the Examples
+
+All examples use `eval: false` by default, meaning they won't execute during rendering. In the notebooks, you can:
+
+1. **Modify connection settings** to match your Elasticsearch instance
+2. **Adjust index names** to avoid conflicts
+3. **Experiment with queries** and see results in real-time
+4. **Add your own code cells** to practice
+
+### Example: Customizing the Connection
+
+```python
+# Default connection
+es = Elasticsearch(['http://localhost:9200'])
+
+# Custom connection (Elastic Cloud example)
+es = Elasticsearch(
+    cloud_id='your-deployment-id',
+    basic_auth=('username', 'password')
+)
+
+# Custom connection (with TLS)
+es = Elasticsearch(
+    ['https://your-elasticsearch-host:9200'],
+    basic_auth=('username', 'password'),
+    ca_certs='/path/to/ca.crt'
+)
+```
+
+---
+
+## Tips for Learning
+
+1. **Run examples in order** - Later examples build on earlier ones
+2. **Experiment freely** - Modify queries and see what happens
+3. **Check Elasticsearch** - Use `curl` or Kibana to verify changes
+4. **Read error messages** - They often contain helpful debugging info
+5. **Use test indices** - Create dedicated indices for practice
+
+:::{.callout-warning}
+## Data Safety
+The notebooks demonstrate deletion operations. Always use test data and indices when learning. Never run these examples against production data!
+:::
+
+---
+
+## Troubleshooting
+
+### Notebooks Won't Open
+
+Make sure Jupyter is installed:
+
+```bash
+uv sync  # Installs all dependencies including Jupyter
+```
+
+### Connection Errors
+
+Verify Elasticsearch is running and accessible:
+
+```bash
+curl http://localhost:9200
+# Should return JSON with cluster information
+```
+
+### Import Errors
+
+Ensure the virtual environment is activated and dependencies are installed:
+
+```bash
+source .venv/bin/activate
+uv sync
+```
+
+---
+
+## Additional Resources
+
+- [Elasticsearch Python Client Docs](https://elasticsearch-py.readthedocs.io/)
+- [Elasticsearch Reference](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)
+- [Jupyter Notebook Documentation](https://jupyter-notebook.readthedocs.io/)
+
+---
+
+:::{.callout-tip}
+## Feedback & Questions
+If you find issues with the notebooks or have suggestions, please [open an issue](https://github.com) on the project repository.
+:::

@@ -1,0 +1,73 @@
+---
+title: "Welcome to Elasticsearch Training"
+---
+
+## About This Training
+
+Welcome to the comprehensive Elasticsearch training course! This interactive guide will take you from the basics to advanced concepts, helping you understand how to leverage Elasticsearch for powerful search and analytics capabilities.
+
+## What is Elasticsearch?
+
+Elasticsearch is a distributed, RESTful search and analytics engine capable of addressing a growing number of use cases. As the heart of the Elastic Stack, it centrally stores your data for lightning-fast search, fine-tuned relevancy, and powerful analytics that scale with ease.
+
+## Key Features
+
+- **Distributed and Scalable**: Built to scale horizontally, Elasticsearch can handle petabytes of data
+- **Real-time Search**: Get results in milliseconds, even on massive datasets
+- **Full-text Search**: Advanced text analysis and search capabilities
+- **Analytics Engine**: Powerful aggregations for data analysis
+- **RESTful API**: Simple HTTP/JSON interface
+- **Schema-free**: Flexible JSON documents that adapt to your data
+
+## Who Should Use This Training?
+
+This training is designed for:
+
+- **Developers** who want to integrate search capabilities into their applications
+- **Data Engineers** looking to build scalable data pipelines
+- **DevOps Engineers** managing Elasticsearch clusters
+- **Data Analysts** wanting to explore and visualize data
+
+## What You'll Learn
+
+Throughout this training, you'll explore:
+
+1. **Getting Started**: Installing and connecting to Elasticsearch
+2. **Core Concepts**: Understanding indices, documents, and mappings
+3. **Indexing & Documents**: How to store and manage data
+4. **Search & Queries**: Performing powerful searches
+5. **Aggregations**: Analyzing and summarizing data
+6. **Advanced Topics**: Clustering, scaling, and optimization
+
+## Prerequisites
+
+To follow along with the code examples, you should have:
+
+- Basic understanding of JSON
+- Familiarity with REST APIs
+- Python knowledge (for examples)
+- An Elasticsearch instance (we'll show you how to set one up)
+
+:::{.callout-tip}
+## Ready to Start?
+Navigate to the **Getting Started** section to begin your Elasticsearch journey!
+:::
+
+## About the Examples
+
+All code examples in this training use Python with the official Elasticsearch client library. The examples are executable and interactive, allowing you to experiment and learn by doing.
+
+```{python}
+#| echo: true
+#| eval: false
+# Example: Connecting to Elasticsearch
+from elasticsearch import Elasticsearch
+
+# Create connection
+es = Elasticsearch(['http://localhost:9200'])
+
+# Check cluster health
+print(es.cluster.health())
+```
+
+Let's get started!

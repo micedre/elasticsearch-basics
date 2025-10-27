@@ -1,0 +1,231 @@
+---
+title: "Getting Started with Elasticsearch"
+format: 
+    html: default
+    ipynb: default
+---
+
+## Installation Options
+
+There are several ways to get Elasticsearch up and running:
+
+### Option 1: Docker (Recommended for Development)
+
+The easiest way to get started is using Docker:
+
+```bash
+# Pull the Elasticsearch image
+docker pull docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+
+# Run Elasticsearch
+docker run -d \
+  --name elasticsearch \
+  -p 9200:9200 \
+  -p 9300:9300 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=false" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+```
+
+### Option 2: Elastic Cloud
+
+Elastic offers a hosted cloud solution at [cloud.elastic.co](https://cloud.elastic.co) with a free trial.
+
+### Option 3: Local Installation
+
+Download and install from [elastic.co/downloads/elasticsearch](https://www.elastic.co/downloads/elasticsearch).
+
+:::{.callout-note}
+## Security Note
+For production environments, always enable security features. The examples here disable security for simplicity.
+:::
+
+## Installing the Python Client
+
+With our project already set up using `uv`, we have the Elasticsearch client installed. If you need to add it to a new project:
+
+```bash
+uv add elasticsearch
+```
+
+## Connecting to Elasticsearch
+
+Let's verify our connection to Elasticsearch:
+
+```{python}
+#| echo: true
+#| eval: false
+from elasticsearch import Elasticsearch
+import json
+
+# Create an Elasticsearch client
+es = Elasticsearch(
+    ['http://localhost:9200'],
+    # For Elastic Cloud, use:
+    # cloud_id="your-cloud-id",
+    # api_key=("your-api-key-id", "your-api-key")
+)
+
+# Test the connection
+if es.ping():
+    print("Connected to Elasticsearch!")
+
+    # Get cluster info
+    info = es.info()
+    print(f"Cluster name: {info['cluster_name']}")
+    print(f"Version: {info['version']['number']}")
+else:
+    print("Could not connect to Elasticsearch")
+```
+
+## Basic Cluster Information
+
+Once connected, you can retrieve various information about your cluster:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Get cluster health
+health = es.cluster.health()
+print(f"Cluster status: {health['status']}")
+print(f"Number of nodes: {health['number_of_nodes']}")
+print(f"Number of data nodes: {health['number_of_data_nodes']}")
+
+# Get cluster stats
+stats = es.cluster.stats()
+print(f"Total documents: {stats['indices']['docs']['count']}")
+print(f"Total size: {stats['indices']['store']['size_in_bytes']} bytes")
+```
+
+## Understanding the Response Format
+
+Elasticsearch responses are JSON objects. Here's an example:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Get cluster health (formatted)
+health = es.cluster.health()
+print(json.dumps(health, indent=2))
+
+# Example output:
+# {
+#   "cluster_name": "docker-cluster",
+#   "status": "yellow",
+#   "timed_out": false,
+#   "number_of_nodes": 1,
+#   "number_of_data_nodes": 1,
+#   "active_primary_shards": 5,
+#   "active_shards": 5,
+#   "relocating_shards": 0,
+#   "initializing_shards": 0,
+#   "unassigned_shards": 5
+# }
+```
+
+## Testing Your Setup
+
+Here's a simple test to ensure everything is working:
+
+```{python}
+#| echo: true
+#| eval: false
+
+def test_elasticsearch_connection():
+    """Test Elasticsearch connection and basic operations"""
+    try:
+        # Connect
+        es = Elasticsearch(['http://localhost:9200'])
+
+        # Check connection
+        if not es.ping():
+            return "Failed to connect"
+
+        # Get cluster info
+        info = es.info()
+
+        # Return summary
+        return {
+            "status": "Connected",
+            "cluster_name": info['cluster_name'],
+            "version": info['version']['number'],
+            "lucene_version": info['version']['lucene_version']
+        }
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# Run the test
+result = test_elasticsearch_connection()
+print(json.dumps(result, indent=2))
+```
+
+:::{.callout-tip}
+## Next Steps
+Now that you're connected, let's explore the core concepts of Elasticsearch in the next section!
+:::
+
+## Common Connection Issues
+
+### Issue: Connection Refused
+
+**Solution**: Ensure Elasticsearch is running and accessible on port 9200.
+
+```bash
+# Check if Elasticsearch is running
+curl http://localhost:9200
+
+# Or using Python
+import requests
+response = requests.get('http://localhost:9200')
+print(response.json())
+```
+
+### Issue: Timeout Errors
+
+**Solution**: Increase the timeout in your client configuration:
+
+```{python}
+#| echo: true
+#| eval: false
+
+es = Elasticsearch(
+    ['http://localhost:9200'],
+    request_timeout=30,  # 30 seconds timeout
+    max_retries=3,
+    retry_on_timeout=True
+)
+```
+
+### Issue: SSL/TLS Errors
+
+**Solution**: For development with self-signed certificates:
+
+```{python}
+#| echo: true
+#| eval: false
+
+es = Elasticsearch(
+    ['https://localhost:9200'],
+    verify_certs=False,  # Only for development!
+    ssl_show_warn=False
+)
+```
+
+:::{.callout-warning}
+## Security Warning
+Never disable certificate verification in production environments!
+:::
+
+---
+
+## Download Notebook
+
+:::{.callout-note}
+## Jupyter Notebook
+Download this section as an interactive Jupyter notebook to run the examples on your own machine.
+
+[Download getting-started.ipynb](getting-started.ipynb){.btn .btn-primary download="getting-started.ipynb"}
+:::

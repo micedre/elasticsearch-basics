@@ -1,0 +1,13 @@
+[project]
+name = "elasticsearch-basics"
+version = "0.1.0"
+description = "Elasticsearch training website built with Quarto"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "jupyter>=1.1.1",
+    "elasticsearch>=8.16.0",
+    "pandas>=2.2.3",
+    "matplotlib>=3.9.3",
+    "requests>=2.32.3",
+]
