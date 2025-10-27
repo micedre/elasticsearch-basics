@@ -231,9 +231,13 @@ jupyter notebook
 
 ```
 elasticsearch-basics/
+├── .github/
+│   └── workflows/
+│       └── publish.yml      # GitHub Actions workflow for deployment
 ├── _quarto.yml              # Base Quarto configuration with profiles
 ├── _quarto-french.yml       # French language profile
 ├── _quarto-english.yml      # English language profile
+├── .nojekyll                # Prevents GitHub Pages from ignoring _files
 ├── render_all.sh            # Render script (Unix/macOS/Linux)
 ├── render_all.ps1           # Render script (Windows PowerShell)
 ├── render_all.bat           # Render script (Windows CMD)
@@ -337,11 +341,44 @@ es = Elasticsearch(['http://localhost:9200'])
 
 ## Publishing
 
-To publish the website:
+### GitHub Pages (Recommended)
 
-1. **GitHub Pages**: Push the `_site/` directory to a `gh-pages` branch
-2. **Netlify/Vercel**: Connect your repository and deploy
-3. **Custom Server**: Upload the `_site/` directory
+The repository includes a GitHub Actions workflow that automatically builds and deploys both language versions.
+
+**Setup:**
+
+1. Push your code to GitHub
+2. Go to repository **Settings** → **Pages**
+3. Under **Source**, select **GitHub Actions**
+4. Push to `main` or `master` branch to trigger deployment
+
+The workflow will:
+- ✅ Build both French and English sites
+- ✅ Deploy to GitHub Pages
+- ✅ Create a redirect from root (`/`) to French (`/fr/`)
+
+Your site will be available at: `https://yourusername.github.io/repository-name/`
+
+**Manual deployment:**
+
+```bash
+# Build both sites
+./render_all.sh
+
+# The .github/workflows/publish.yml handles automatic deployment
+```
+
+### Other Deployment Options
+
+1. **Netlify/Vercel**: Connect your repository and configure:
+   - Build command: `./render_all.sh`
+   - Publish directory: `_site`
+
+2. **Custom Server**:
+   ```bash
+   ./render_all.sh
+   # Upload _site/ directory to your server
+   ```
 
 ## Contributing
 
