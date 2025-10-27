@@ -155,13 +155,14 @@ elasticsearch-basics/
 ├── _quarto.yml              # Quarto configuration
 ├── styles.css               # Custom styles
 ├── index.qmd                # Homepage
-├── getting-started.qmd      # Installation and setup (generates .ipynb)
-├── core-concepts.qmd        # Fundamental concepts
-├── indexing.qmd             # Document management (generates .ipynb)
-├── search.qmd               # Search and queries (generates .ipynb)
-├── aggregations.qmd         # Data analytics (generates .ipynb)
-├── advanced.qmd             # Advanced topics
-├── downloads.qmd            # Notebooks download page
+├── content/                 # All content pages
+│   ├── getting-started.qmd  # Installation and setup (generates .ipynb)
+│   ├── core-concepts.qmd    # Fundamental concepts
+│   ├── indexing.qmd         # Document management (generates .ipynb)
+│   ├── search.qmd           # Search and queries (generates .ipynb)
+│   ├── aggregations.qmd     # Data analytics (generates .ipynb)
+│   ├── advanced.qmd         # Advanced topics
+│   └── downloads.qmd        # Notebooks download page
 ├── pyproject.toml           # Python dependencies (uv)
 ├── README.md                # This file
 └── _site/                   # Generated website (after render)
@@ -192,7 +193,7 @@ jupyter notebook
 
 ### Modifying Content
 
-All content is in `.qmd` (Quarto Markdown) files. These files support:
+All content pages are in the `content/` directory as `.qmd` (Quarto Markdown) files. These files support:
 - Markdown formatting
 - Executable Python code blocks
 - LaTeX math
@@ -222,8 +223,8 @@ To publish the website:
 
 To add new sections or improve existing content:
 
-1. Create or modify `.qmd` files
-2. Update `_quarto.yml` if adding new pages
+1. Create or modify `.qmd` files in the `content/` directory
+2. Update `_quarto.yml` if adding new pages (include `content/` prefix in paths)
 3. Test with `quarto preview`
 4. Build with `quarto render`
 

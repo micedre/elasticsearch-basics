@@ -9,19 +9,19 @@ website:
       - text: "Home"
         href: index.qmd
       - text: "Getting Started"
-        href: getting-started.qmd
+        href: content/getting-started.qmd
       - text: "Core Concepts"
-        href: core-concepts.qmd
+        href: content/core-concepts.qmd
       - text: "Indexing & Documents"
-        href: indexing.qmd
+        href: content/indexing.qmd
       - text: "Search & Queries"
-        href: search.qmd
+        href: content/search.qmd
       - text: "Aggregations"
-        href: aggregations.qmd
+        href: content/aggregations.qmd
       - text: "Advanced Topics"
-        href: advanced.qmd
+        href: content/advanced.qmd
       - text: "Downloads"
-        href: downloads.qmd
+        href: content/downloads.qmd
 
   sidebar:
     style: "docked"
@@ -30,21 +30,21 @@ website:
       - section: "Introduction"
         contents:
           - index.qmd
-          - getting-started.qmd
+          - content/getting-started.qmd
       - section: "Fundamentals"
         contents:
-          - core-concepts.qmd
-          - indexing.qmd
+          - content/core-concepts.qmd
+          - content/indexing.qmd
       - section: "Working with Data"
         contents:
-          - search.qmd
-          - aggregations.qmd
+          - content/search.qmd
+          - content/aggregations.qmd
       - section: "Advanced"
         contents:
-          - advanced.qmd
+          - content/advanced.qmd
       - section: "Resources"
         contents:
-          - downloads.qmd
+          - content/downloads.qmd
 
 format:
   html:
