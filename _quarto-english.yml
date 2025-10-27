@@ -10,21 +10,21 @@ website:
   navbar:
     left:
       - text: "Home"
-        href: index.html
+        href: en/index.html
       - text: "Getting Started"
-        href: content/getting-started.html
+        href: en/content/getting-started.html
       - text: "Core Concepts"
-        href: content/core-concepts.html
+        href: en/content/core-concepts.html
       - text: "Indexing & Documents"
-        href: content/indexing.html
+        href: en/content/indexing.html
       - text: "Search & Queries"
-        href: content/search.html
+        href: en/content/search.html
       - text: "Aggregations"
-        href: content/aggregations.html
+        href: en/content/aggregations.html
       - text: "Advanced Topics"
-        href: content/advanced.html
+        href: en/content/advanced.html
       - text: "Downloads"
-        href: content/downloads.html
+        href: en/content/downloads.html
     right:
       - text: "🇫🇷 Français"
         href: "javascript:switchToFrench()"

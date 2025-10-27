@@ -12,19 +12,19 @@ website:
       - text: "Accueil"
         href: index.html
       - text: "Démarrage"
-        href: content/getting-started.html
+        href: fr/content/getting-started.html
       - text: "Concepts"
-        href: content/core-concepts.html
+        href: fr/content/core-concepts.html
       - text: "Indexation"
-        href: content/indexing.html
+        href: fr/content/indexing.html
       - text: "Recherche"
-        href: content/search.html
+        href: fr/content/search.html
       - text: "Agrégations"
-        href: content/aggregations.html
+        href: fr/content/aggregations.html
       - text: "Avancé"
-        href: content/advanced.html
+        href: fr/content/advanced.html
       - text: "Téléchargements"
-        href: content/downloads.html
+        href: fr/content/downloads.html
     right:
       - text: "🇬🇧 English"
         href: "javascript:switchToEnglish()"
