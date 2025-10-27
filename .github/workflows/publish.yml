@@ -43,10 +43,10 @@ jobs:
           version: pre-release
 
       - name: Render French site
-        run: quarto render --profile french
+        run: uv run quarto render --profile french
 
       - name: Render English site (preserve French)
-        run: quarto render --profile english --no-clean
+        run: uv run quarto render --profile english --no-clean
 
       - name: Create root redirect to French
         run: |
