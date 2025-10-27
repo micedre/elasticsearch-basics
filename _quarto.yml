@@ -2,49 +2,9 @@ project:
   type: website
   output-dir: _site
 
-website:
-  title: "Elasticsearch Training"
-  navbar:
-    left:
-      - text: "Home"
-        href: index.qmd
-      - text: "Getting Started"
-        href: content/getting-started.qmd
-      - text: "Core Concepts"
-        href: content/core-concepts.qmd
-      - text: "Indexing & Documents"
-        href: content/indexing.qmd
-      - text: "Search & Queries"
-        href: content/search.qmd
-      - text: "Aggregations"
-        href: content/aggregations.qmd
-      - text: "Advanced Topics"
-        href: content/advanced.qmd
-      - text: "Downloads"
-        href: content/downloads.qmd
-
-  sidebar:
-    style: "docked"
-    search: true
-    contents:
-      - section: "Introduction"
-        contents:
-          - index.qmd
-          - content/getting-started.qmd
-      - section: "Fundamentals"
-        contents:
-          - content/core-concepts.qmd
-          - content/indexing.qmd
-      - section: "Working with Data"
-        contents:
-          - content/search.qmd
-          - content/aggregations.qmd
-      - section: "Advanced"
-        contents:
-          - content/advanced.qmd
-      - section: "Resources"
-        contents:
-          - content/downloads.qmd
+profile:
+  default: french
+  group: [french, english]
 
 format:
   html:

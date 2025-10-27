@@ -13,6 +13,79 @@ This interactive training guide covers Elasticsearch from basics to advanced top
 - **Aggregations**: Analytics and data summarization
 - **Advanced Topics**: Clustering, optimization, and production best practices
 
+## Multilingual Support
+
+This website is available in **French** (default) and **English**.
+
+### Language Structure
+
+- **French**: `_site/fr/` (default language)
+- **English**: `_site/en/` (translation)
+
+### Previewing a Specific Language
+
+```bash
+# Preview French version
+quarto preview --profile french
+
+# Preview English version
+quarto preview --profile english
+```
+
+### Rendering Both Languages
+
+Use the provided render scripts to build both language versions:
+
+```bash
+# On Unix/macOS/Linux
+./render_all.sh
+
+# On Windows (PowerShell)
+./render_all.ps1
+
+# On Windows (Command Prompt)
+render_all.bat
+```
+
+Or render individually:
+
+```bash
+quarto render --profile french
+quarto render --profile english
+```
+
+### How Translations Work
+
+Content is organized in **separate language directories**:
+
+- `fr/` - Complete French content (all pages and titles fully translated)
+- `en/` - Complete English content
+
+Each language has its own:
+- Homepage: `fr/index.qmd` and `en/index.qmd`
+- Content directory: `fr/content/` and `en/content/`
+- Configuration: `_quarto-french.yml` and `_quarto-english.yml`
+
+This approach provides complete separation between languages, making it easy to maintain independent translations with localized page titles, navigation, and content.
+
+### Language Switcher
+
+Each page includes a smart language switcher button that:
+- Preserves the current page when switching languages
+- Automatically updates `/fr/` to `/en/` (or vice versa) in the URL
+- Falls back to the homepage if the current page doesn't exist in the target language
+
+### Adding New Languages
+
+To add a new language (e.g., Spanish):
+
+1. Create `es/` directory with `es/index.qmd` and `es/content/` subdirectory
+2. Translate all content files from `en/content/` to `es/content/`
+3. Create `_quarto-spanish.yml` with `output-dir: _site/es` and appropriate settings
+4. Update `_quarto.yml` to include `spanish` in the profile group
+5. Update language switcher links in all profile configs' navbar
+6. Run `quarto render --profile spanish`
+
 ## Jupyter Notebooks
 
 The hands-on sections are available as downloadable Jupyter notebooks! Each notebook includes:
@@ -141,10 +214,16 @@ jupyter notebook
 ```
 
 4. **Open a notebook** from the `_site/` directory:
-- `_site/getting-started.ipynb`
-- `_site/indexing.ipynb`
-- `_site/search.ipynb`
-- `_site/aggregations.ipynb`
+- French notebooks: `_site/fr/content/*.ipynb`
+  - `_site/fr/content/getting-started.ipynb`
+  - `_site/fr/content/indexing.ipynb`
+  - `_site/fr/content/search.ipynb`
+  - `_site/fr/content/aggregations.ipynb`
+- English notebooks: `_site/en/content/*.ipynb`
+  - `_site/en/content/getting-started.ipynb`
+  - `_site/en/content/indexing.ipynb`
+  - `_site/en/content/search.ipynb`
+  - `_site/en/content/aggregations.ipynb`
 
 5. **Run the cells** and experiment with the examples!
 
@@ -152,22 +231,61 @@ jupyter notebook
 
 ```
 elasticsearch-basics/
-├── _quarto.yml              # Quarto configuration
+├── _quarto.yml              # Base Quarto configuration with profiles
+├── _quarto-french.yml       # French language profile
+├── _quarto-english.yml      # English language profile
+├── render_all.sh            # Render script (Unix/macOS/Linux)
+├── render_all.ps1           # Render script (Windows PowerShell)
+├── render_all.bat           # Render script (Windows CMD)
 ├── styles.css               # Custom styles
-├── index.qmd                # Homepage
-├── content/                 # All content pages
-│   ├── getting-started.qmd  # Installation and setup (generates .ipynb)
-│   ├── core-concepts.qmd    # Fundamental concepts
-│   ├── indexing.qmd         # Document management (generates .ipynb)
-│   ├── search.qmd           # Search and queries (generates .ipynb)
-│   ├── aggregations.qmd     # Data analytics (generates .ipynb)
-│   ├── advanced.qmd         # Advanced topics
-│   └── downloads.qmd        # Notebooks download page
+├── fr/                      # French content (default language)
+│   ├── index.qmd            # French homepage
+│   └── content/             # French content pages
+│       ├── getting-started.qmd  # Installation et configuration (generates .ipynb)
+│       ├── core-concepts.qmd    # Concepts fondamentaux
+│       ├── indexing.qmd         # Indexation & Documents (generates .ipynb)
+│       ├── search.qmd           # Recherche & Requêtes (generates .ipynb)
+│       ├── aggregations.qmd     # Agrégations (generates .ipynb)
+│       ├── advanced.qmd         # Sujets Avancés
+│       └── downloads.qmd        # Page de téléchargements
+├── en/                      # English content
+│   ├── index.qmd            # English homepage
+│   └── content/             # English content pages
+│       ├── getting-started.qmd  # Installation and setup (generates .ipynb)
+│       ├── core-concepts.qmd    # Fundamental concepts
+│       ├── indexing.qmd         # Document management (generates .ipynb)
+│       ├── search.qmd           # Search and queries (generates .ipynb)
+│       ├── aggregations.qmd     # Data analytics (generates .ipynb)
+│       ├── advanced.qmd         # Advanced topics
+│       └── downloads.qmd        # Notebooks download page
 ├── pyproject.toml           # Python dependencies (uv)
 ├── README.md                # This file
 └── _site/                   # Generated website (after render)
-    ├── *.html               # Website pages
-    └── *.ipynb              # Jupyter notebooks
+    ├── _redirects           # Deployment redirects
+    ├── fr/                  # French site
+    │   ├── index.html
+    │   ├── content/
+    │   │   ├── getting-started.html
+    │   │   ├── getting-started.ipynb
+    │   │   ├── indexing.html
+    │   │   ├── indexing.ipynb
+    │   │   ├── search.html
+    │   │   ├── search.ipynb
+    │   │   ├── aggregations.html
+    │   │   └── aggregations.ipynb
+    │   └── ...
+    └── en/                  # English site
+        ├── index.html
+        ├── content/
+        │   ├── getting-started.html
+        │   ├── getting-started.ipynb
+        │   ├── indexing.html
+        │   ├── indexing.ipynb
+        │   ├── search.html
+        │   ├── search.ipynb
+        │   ├── aggregations.html
+        │   └── aggregations.ipynb
+        └── ...
 ```
 
 ## Development
@@ -193,12 +311,18 @@ jupyter notebook
 
 ### Modifying Content
 
-All content pages are in the `content/` directory as `.qmd` (Quarto Markdown) files. These files support:
+Content pages are organized by language:
+- French content: `fr/content/` directory
+- English content: `en/content/` directory
+
+All `.qmd` (Quarto Markdown) files support:
 - Markdown formatting
 - Executable Python code blocks
 - LaTeX math
 - Cross-references
 - And more
+
+To modify content in both languages, edit the corresponding files in both `fr/content/` and `en/content/`.
 
 Example code block syntax:
 
@@ -223,10 +347,10 @@ To publish the website:
 
 To add new sections or improve existing content:
 
-1. Create or modify `.qmd` files in the `content/` directory
-2. Update `_quarto.yml` if adding new pages (include `content/` prefix in paths)
-3. Test with `quarto preview`
-4. Build with `quarto render`
+1. Create or modify `.qmd` files in both `fr/content/` and `en/content/` directories
+2. Update `_quarto-french.yml` and `_quarto-english.yml` if adding new pages
+3. Test with `quarto preview --profile french` and `quarto preview --profile english`
+4. Build with `./render_all.sh` or render profiles individually
 
 ## Resources
 

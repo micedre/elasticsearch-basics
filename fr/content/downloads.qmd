@@ -1,0 +1,236 @@
+---
+title: "Télécharger les Notebooks"
+---
+
+## Notebooks Jupyter Interactifs
+
+Téléchargez les sections pratiques sous forme de notebooks Jupyter interactifs pour exécuter les exemples sur votre propre machine.
+
+### Prérequis
+
+Avant d'utiliser ces notebooks, assurez-vous d'avoir :
+
+1. Python 3.13+ installé
+2. Les dépendances du projet installées via `uv sync`
+3. Une instance Elasticsearch en cours d'exécution (voir [Démarrage](getting-started.qmd))
+
+### Notebooks Disponibles
+
+Tous les notebooks incluent :
+- Des explications complètes et du texte markdown
+- Des exemples de code Python exécutables
+- Des requêtes et opérations prêtes à l'emploi
+
+---
+
+### 1. Démarrage
+
+Apprenez à installer Elasticsearch, vous connecter avec le client Python et vérifier votre configuration.
+
+**Sujets couverts :**
+- Options d'installation (Docker, Cloud, Local)
+- Configuration du client Python
+- Test des connexions
+- Dépannage des problèmes courants
+
+[Télécharger getting-started.ipynb](getting-started.ipynb){.btn .btn-primary download="getting-started.ipynb"}
+
+---
+
+### 2. Indexation & Documents
+
+Maîtrisez les opérations CRUD, l'indexation en masse et la gestion des index.
+
+**Sujets couverts :**
+- Création d'index avec paramètres personnalisés
+- Indexation de documents simples et multiples
+- Récupération, mise à jour et suppression de documents
+- Alias d'index et réindexation
+- Meilleures pratiques pour les opérations en masse
+
+[Télécharger indexing.ipynb](indexing.ipynb){.btn .btn-primary download="indexing.ipynb"}
+
+---
+
+### 3. Recherche & Requêtes
+
+Explorez le puissant Query DSL d'Elasticsearch pour rechercher et filtrer les données.
+
+**Sujets couverts :**
+- Recherche full-text avec requêtes match
+- Requêtes term et range
+- Requêtes booléennes et filtres
+- Tri et pagination
+- Mise en évidence et filtrage de source
+- Techniques de requête avancées
+
+[Télécharger search.ipynb](search.ipynb){.btn .btn-primary download="search.ipynb"}
+
+---
+
+### 4. Agrégations
+
+Apprenez l'analyse de données et les agrégations pour des insights puissants.
+
+**Sujets couverts :**
+- Agrégations métriques (avg, sum, stats)
+- Agrégations de compartiments (terms, ranges, histograms)
+- Histogrammes de dates pour l'analyse de séries temporelles
+- Agrégations imbriquées
+- Agrégations pipeline
+- Exemples d'analyse pratiques
+
+[Télécharger aggregations.ipynb](aggregations.ipynb){.btn .btn-primary download="aggregations.ipynb"}
+
+---
+
+## Télécharger Tous les Notebooks
+
+:::{.callout-tip}
+## Téléchargement Groupé
+Vous pouvez télécharger tous les notebooks en une seule fois en clonant le dépôt ou en utilisant le répertoire `_site/` rendu après avoir exécuté `quarto render`.
+
+```bash
+# Après le rendu, les notebooks sont dans le répertoire _site
+quarto render
+ls _site/*.ipynb
+```
+:::
+
+---
+
+## Comment Utiliser les Notebooks
+
+### 1. Activer l'Environnement Virtuel
+
+```bash
+# Depuis le répertoire du projet
+source .venv/bin/activate  # Unix/macOS
+# ou
+.venv\Scripts\activate     # Windows
+```
+
+### 2. Démarrer Jupyter
+
+```bash
+jupyter notebook
+```
+
+Cela ouvrira Jupyter dans votre navigateur.
+
+### 3. Naviguer vers le Notebook Téléchargé
+
+Ouvrez le fichier `.ipynb` téléchargé dans Jupyter.
+
+### 4. S'assurer qu'Elasticsearch est en Cours d'Exécution
+
+Avant d'exécuter les cellules, assurez-vous que votre instance Elasticsearch est en cours d'exécution :
+
+```bash
+# Vérifier si Elasticsearch répond
+curl http://localhost:9200
+
+# Ou démarrer avec Docker
+docker run -d --name elasticsearch -p 9200:9200 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=false" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+```
+
+### 5. Exécuter les Cellules
+
+Exécutez les cellules dans l'ordre en utilisant :
+- `Shift + Entrée` pour exécuter une cellule et passer à la suivante
+- `Ctrl + Entrée` pour exécuter une cellule et rester dessus
+- `Cellule > Tout Exécuter` pour exécuter toutes les cellules
+
+---
+
+## Personnaliser les Exemples
+
+Tous les exemples utilisent `eval: false` par défaut, ce qui signifie qu'ils ne s'exécuteront pas pendant le rendu. Dans les notebooks, vous pouvez :
+
+1. **Modifier les paramètres de connexion** pour correspondre à votre instance Elasticsearch
+2. **Ajuster les noms d'index** pour éviter les conflits
+3. **Expérimenter avec les requêtes** et voir les résultats en temps réel
+4. **Ajouter vos propres cellules de code** pour pratiquer
+
+### Exemple : Personnaliser la Connexion
+
+```python
+# Connexion par défaut
+es = Elasticsearch(['http://localhost:9200'])
+
+# Connexion personnalisée (exemple Elastic Cloud)
+es = Elasticsearch(
+    cloud_id='votre-deployment-id',
+    basic_auth=('nom_utilisateur', 'mot_de_passe')
+)
+
+# Connexion personnalisée (avec TLS)
+es = Elasticsearch(
+    ['https://votre-hote-elasticsearch:9200'],
+    basic_auth=('nom_utilisateur', 'mot_de_passe'),
+    ca_certs='/chemin/vers/ca.crt'
+)
+```
+
+---
+
+## Conseils d'Apprentissage
+
+1. **Exécutez les exemples dans l'ordre** - Les exemples ultérieurs s'appuient sur les précédents
+2. **Expérimentez librement** - Modifiez les requêtes et voyez ce qui se passe
+3. **Vérifiez Elasticsearch** - Utilisez `curl` ou Kibana pour vérifier les changements
+4. **Lisez les messages d'erreur** - Ils contiennent souvent des informations de débogage utiles
+5. **Utilisez des index de test** - Créez des index dédiés pour la pratique
+
+:::{.callout-warning}
+## Sécurité des Données
+Les notebooks démontrent des opérations de suppression. Utilisez toujours des données et des index de test lors de l'apprentissage. N'exécutez jamais ces exemples sur des données de production !
+:::
+
+---
+
+## Dépannage
+
+### Les Notebooks ne S'ouvrent Pas
+
+Assurez-vous que Jupyter est installé :
+
+```bash
+uv sync  # Installe toutes les dépendances y compris Jupyter
+```
+
+### Erreurs de Connexion
+
+Vérifiez qu'Elasticsearch est en cours d'exécution et accessible :
+
+```bash
+curl http://localhost:9200
+# Devrait retourner du JSON avec les informations du cluster
+```
+
+### Erreurs d'Importation
+
+Assurez-vous que l'environnement virtuel est activé et que les dépendances sont installées :
+
+```bash
+source .venv/bin/activate
+uv sync
+```
+
+---
+
+## Ressources Additionnelles
+
+- [Documentation du Client Python Elasticsearch](https://elasticsearch-py.readthedocs.io/)
+- [Référence Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)
+- [Documentation Jupyter Notebook](https://jupyter-notebook.readthedocs.io/)
+
+---
+
+:::{.callout-tip}
+## Commentaires & Questions
+Si vous trouvez des problèmes avec les notebooks ou avez des suggestions, veuillez [ouvrir une issue](https://github.com) sur le dépôt du projet.
+:::

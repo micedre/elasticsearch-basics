@@ -1,0 +1,73 @@
+---
+title: "Bienvenue à la Formation Elasticsearch"
+---
+
+## À propos de cette formation
+
+Bienvenue au cours complet de formation Elasticsearch ! Ce guide interactif vous emmènera des bases aux concepts avancés, vous aidant à comprendre comment exploiter Elasticsearch pour de puissantes capacités de recherche et d'analyse.
+
+## Qu'est-ce qu'Elasticsearch ?
+
+Elasticsearch est un moteur de recherche et d'analyse distribué et RESTful capable de répondre à un nombre croissant de cas d'usage. En tant que cœur de l'Elastic Stack, il centralise le stockage de vos données pour des recherches ultra-rapides, une pertinence affinée et des analyses puissantes qui s'adaptent facilement.
+
+## Fonctionnalités clés
+
+- **Distribué et Évolutif** : Conçu pour s'étendre horizontalement, Elasticsearch peut gérer des pétaoctets de données
+- **Recherche en Temps Réel** : Obtenez des résultats en millisecondes, même sur des ensembles de données massifs
+- **Recherche Full-text** : Capacités avancées d'analyse et de recherche de texte
+- **Moteur d'Analyse** : Agrégations puissantes pour l'analyse de données
+- **API RESTful** : Interface HTTP/JSON simple
+- **Sans Schéma** : Documents JSON flexibles qui s'adaptent à vos données
+
+## À qui s'adresse cette formation ?
+
+Cette formation est conçue pour :
+
+- **Les Développeurs** qui souhaitent intégrer des capacités de recherche dans leurs applications
+- **Les Ingénieurs de Données** cherchant à construire des pipelines de données évolutifs
+- **Les Ingénieurs DevOps** gérant des clusters Elasticsearch
+- **Les Analystes de Données** voulant explorer et visualiser des données
+
+## Ce que vous allez apprendre
+
+Tout au long de cette formation, vous explorerez :
+
+1. **Démarrage** : Installation et connexion à Elasticsearch
+2. **Concepts de Base** : Comprendre les indices, documents et mappings
+3. **Indexation & Documents** : Comment stocker et gérer les données
+4. **Recherche & Requêtes** : Effectuer des recherches puissantes
+5. **Agrégations** : Analyser et résumer les données
+6. **Sujets Avancés** : Clustering, mise à l'échelle et optimisation
+
+## Prérequis
+
+Pour suivre les exemples de code, vous devez avoir :
+
+- Une compréhension de base de JSON
+- Une familiarité avec les APIs REST
+- Des connaissances en Python (pour les exemples)
+- Une instance Elasticsearch (nous vous montrerons comment en configurer une)
+
+:::{.callout-tip}
+## Prêt à commencer ?
+Naviguez vers la section **Démarrage** pour commencer votre parcours Elasticsearch !
+:::
+
+## À propos des exemples
+
+Tous les exemples de code dans cette formation utilisent Python avec la bibliothèque client officielle Elasticsearch. Les exemples sont exécutables et interactifs, vous permettant d'expérimenter et d'apprendre en faisant.
+
+```{python}
+#| echo: true
+#| eval: false
+# Exemple : Connexion à Elasticsearch
+from elasticsearch import Elasticsearch
+
+# Créer une connexion
+es = Elasticsearch(['http://localhost:9200'])
+
+# Vérifier l'état du cluster
+print(es.cluster.health())
+```
+
+Commençons !

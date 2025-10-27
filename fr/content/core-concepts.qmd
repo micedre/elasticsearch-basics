@@ -1,0 +1,343 @@
+---
+title: "Concepts Fondamentaux"
+---
+
+## Comprendre l'Architecture d'Elasticsearch
+
+Elasticsearch est construit sur plusieurs concepts clés qui fonctionnent ensemble pour fournir de puissantes capacités de recherche et d'analyse.
+
+## Documents
+
+Un **document** est l'unité d'information de base dans Elasticsearch. C'est un objet JSON qui contient vos données.
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Exemple de document
+document = {
+    "title": "Introduction à Elasticsearch",
+    "author": "John Doe",
+    "published_date": "2024-01-15",
+    "content": "Elasticsearch est un moteur de recherche puissant...",
+    "tags": ["recherche", "elasticsearch", "tutoriel"],
+    "views": 1250,
+    "rating": 4.5
+}
+```
+
+### Points Clés sur les Documents :
+
+- Les documents sont exprimés au format JSON
+- Chaque document a un ID unique (auto-généré ou spécifié)
+- Les documents sont sans schéma mais bénéficient d'un mapping explicite
+- Similaire à une ligne dans une base de données relationnelle
+
+## Indices
+
+Un **index** est une collection de documents ayant des caractéristiques similaires. Pensez-y comme à une base de données dans les systèmes traditionnels.
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Conventions de nommage des index
+index_name = "blog_posts"  # minuscules, sans caractères spéciaux
+
+# Plusieurs index peuvent exister
+indices = [
+    "blog_posts",
+    "user_profiles",
+    "product_catalog",
+    "log_data_2024"
+]
+```
+
+### Caractéristiques des Index :
+
+- Identifié par un nom en minuscules
+- Contient des documents de type similaire
+- Peut être optimisé pour des cas d'usage spécifiques
+- Supporte des paramètres et mappings personnalisés
+
+## Mapping
+
+Le **mapping** définit comment les documents et leurs champs sont stockés et indexés. C'est similaire à un schéma dans les bases de données relationnelles.
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Exemple de définition de mapping
+mapping = {
+    "properties": {
+        "title": {
+            "type": "text",
+            "analyzer": "english"
+        },
+        "author": {
+            "type": "keyword"  # Non analysé, correspondances exactes
+        },
+        "published_date": {
+            "type": "date",
+            "format": "yyyy-MM-dd"
+        },
+        "content": {
+            "type": "text"
+        },
+        "tags": {
+            "type": "keyword"
+        },
+        "views": {
+            "type": "integer"
+        },
+        "rating": {
+            "type": "float"
+        }
+    }
+}
+```
+
+### Types de Champs Courants :
+
+| Type | Description | Cas d'Usage Exemple |
+|------|-------------|---------------------|
+| `text` | Recherche full-text | Contenu d'article, descriptions |
+| `keyword` | Correspondance de valeur exacte | Tags, catégories, IDs |
+| `date` | Valeurs date/heure | Dates de publication, horodatages |
+| `integer`/`long` | Nombres entiers | Comptages, IDs |
+| `float`/`double` | Nombres décimaux | Évaluations, prix |
+| `boolean` | Vrai/faux | Drapeaux, statut |
+| `object` | Objet JSON imbriqué | Structures complexes |
+| `geo_point` | Latitude/longitude | Données de localisation |
+
+## Fragments et Répliques
+
+Elasticsearch distribue les données entre des **fragments** (shards) pour l'évolutivité et des **répliques** pour la haute disponibilité.
+
+### Fragments
+
+- Un index est divisé en plusieurs fragments
+- Chaque fragment est un index pleinement fonctionnel
+- Permet la mise à l'échelle horizontale
+- Par défaut : 1 fragment primaire par index
+
+### Répliques
+
+- Copies des fragments primaires
+- Fournit la redondance et une capacité de recherche accrue
+- Par défaut : 1 réplique par fragment primaire
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Création d'un index avec paramètres de fragments personnalisés
+index_settings = {
+    "settings": {
+        "number_of_shards": 3,      # Fragments primaires
+        "number_of_replicas": 2      # Copies de réplique
+    },
+    "mappings": {
+        "properties": {
+            "title": {"type": "text"},
+            "content": {"type": "text"}
+        }
+    }
+}
+
+# Note : Ceci est la structure; nous verrons comment l'appliquer dans la section suivante
+```
+
+:::{.callout-note}
+## Stratégie de Fragmentation
+- Plus de fragments = meilleure distribution mais surcharge plus élevée
+- Choisissez le nombre de fragments en fonction du volume de données attendu
+- Impossible de changer le nombre de fragments après la création de l'index (nécessite une réindexation)
+:::
+
+## Nœuds et Clusters
+
+### Cluster
+
+- Une collection de nœuds qui travaillent ensemble
+- Stocke toutes vos données
+- Fournit des capacités d'indexation et de recherche
+- Identifié par un nom unique
+
+### Nœud
+
+- Un serveur unique dans le cluster
+- Stocke les données et participe à l'indexation/recherche
+- Peut avoir différents rôles :
+  - **Nœud maître** : Gestion du cluster
+  - **Nœud de données** : Stocke les données et exécute les requêtes
+  - **Nœud d'ingestion** : Pré-traite les documents
+  - **Nœud de coordination** : Achemine les requêtes
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Obtenir les informations du cluster
+cluster_info = es.cluster.stats()
+
+print(f"Nom du cluster : {cluster_info['cluster_name']}")
+print(f"Nombre de nœuds : {cluster_info['nodes']['count']['total']}")
+print(f"Nombre d'indices : {cluster_info['indices']['count']}")
+
+# Obtenir les informations des nœuds
+nodes = es.nodes.info()
+for node_id, node_data in nodes['nodes'].items():
+    print(f"Nœud : {node_data['name']}")
+    print(f"  Rôles : {', '.join(node_data['roles'])}")
+```
+
+## Index Inversé
+
+Elasticsearch utilise un **index inversé** pour des recherches full-text rapides.
+
+### Comment ça Fonctionne :
+
+1. Le texte est analysé et décomposé en termes
+2. Les termes sont stockés avec des références aux documents
+3. Les recherches consultent les termes dans l'index
+4. Les résultats sont récupérés presque instantanément
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Exemple : Comment le texte est analysé
+text = "The quick brown fox jumps over the lazy dog"
+
+# Après analyse (simplifié) :
+inverted_index = {
+    "quick": ["doc1"],
+    "brown": ["doc1"],
+    "fox": ["doc1"],
+    "jump": ["doc1"],  # racinisé depuis "jumps"
+    "lazi": ["doc1"],  # racinisé depuis "lazy"
+    "dog": ["doc1"]
+}
+
+# Note : Les mots courants comme "the", "over" sont souvent supprimés (mots vides)
+```
+
+## Analyse et Analyseurs
+
+Les **analyseurs** traitent le texte pendant l'indexation et la recherche. Ils se composent de :
+
+1. **Filtres de caractères** : Suppriment/remplacent des caractères
+2. **Tokenizers** : Décomposent le texte en tokens
+3. **Filtres de tokens** : Modifient les tokens (minuscules, racinisation, etc.)
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Exemple : Tester un analyseur
+analyze_request = {
+    "analyzer": "english",
+    "text": "The Quick Brown Foxes jumped over the lazy dogs"
+}
+
+# Cela produirait des tokens comme :
+# ["quick", "brown", "fox", "jump", "lazi", "dog"]
+# Remarquez : minuscules, racinisés, mots vides supprimés
+```
+
+### Analyseurs Courants :
+
+- `standard` : Par défaut, bon pour la plupart des langues
+- `english` : Spécifique à la langue anglaise
+- `keyword` : Pas d'analyse, correspondance exacte
+- `whitespace` : Divise uniquement sur les espaces
+- `simple` : Minuscules et division sur les non-lettres
+
+:::{.callout-tip}
+## Comprendre l'Analyse
+Le choix approprié de l'analyseur est crucial pour de bons résultats de recherche. Choisissez en fonction de votre type de données et des exigences de recherche.
+:::
+
+## Types de Données en Pratique
+
+Voyons comment les différents types de données affectent la recherche :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Exemple de mapping avec différents types
+product_mapping = {
+    "properties": {
+        # Text : recherchable, analysé
+        "description": {
+            "type": "text",
+            "analyzer": "english"
+        },
+
+        # Keyword : correspondance exacte, agrégations, tri
+        "category": {
+            "type": "keyword"
+        },
+
+        # Multi-champ : à la fois text et keyword
+        "name": {
+            "type": "text",
+            "fields": {
+                "keyword": {
+                    "type": "keyword"
+                }
+            }
+        },
+
+        # Numérique : requêtes de plage, agrégations
+        "price": {
+            "type": "float"
+        },
+
+        # Date : mathématiques de date, requêtes de plage
+        "created_at": {
+            "type": "date"
+        },
+
+        # Boolean : filtres vrai/faux
+        "in_stock": {
+            "type": "boolean"
+        },
+
+        # Imbriqué : objets complexes
+        "reviews": {
+            "type": "nested",
+            "properties": {
+                "author": {"type": "keyword"},
+                "rating": {"type": "integer"},
+                "comment": {"type": "text"}
+            }
+        }
+    }
+}
+```
+
+## Résumé
+
+Concepts clés à retenir :
+
+1. **Documents** : Objets JSON contenant vos données
+2. **Indices** : Collections de documents similaires
+3. **Mapping** : Définition de schéma pour les documents
+4. **Fragments** : Distribuent les données pour l'évolutivité
+5. **Répliques** : Fournissent la redondance et la disponibilité
+6. **Nœuds/Clusters** : Composants d'infrastructure
+7. **Index Inversé** : Structure de données permettant des recherches rapides
+8. **Analyseurs** : Traitement de texte pour la recherche
+
+:::{.callout-tip}
+## Prêt pour la Pratique ?
+Dans la section suivante, nous mettrons ces concepts en action en indexant et en gérant des documents !
+:::

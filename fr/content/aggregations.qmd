@@ -1,0 +1,775 @@
+---
+title: "Agrégations"
+format:
+    html: default
+    ipynb: default
+---
+
+## Introduction aux Agrégations
+
+Les agrégations fournissent des analyses et des statistiques sur vos données. Elles vous permettent de construire des résumés complexes de vos données et de répondre à des questions comme :
+
+- Quel est le nombre moyen de vues par article de blog ?
+- Combien d'articles y a-t-il par auteur ?
+- Quelle est la distribution des articles dans le temps ?
+
+## Types d'Agrégations
+
+1. **Agrégations Métriques** : Calculent des métriques (somme, moyenne, min, max, etc.)
+2. **Agrégations de Compartiments** : Groupent les documents en compartiments
+3. **Agrégations Pipeline** : Traitent les sorties d'autres agrégations
+
+## Agrégations Métriques
+
+### Statistiques de Base
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Calculer des statistiques sur les vues
+query = {
+    "aggs": {
+        "avg_views": {
+            "avg": {"field": "views"}
+        },
+        "max_views": {
+            "max": {"field": "views"}
+        },
+        "min_views": {
+            "min": {"field": "views"}
+        },
+        "total_views": {
+            "sum": {"field": "views"}
+        }
+    },
+    "size": 0  # Ne pas retourner de documents, seulement les agrégations
+}
+
+response = es.search(index="blog_posts", body=query)
+
+aggs = response['aggregations']
+print(f"Moyenne de vues : {aggs['avg_views']['value']:.2f}")
+print(f"Maximum de vues : {aggs['max_views']['value']}")
+print(f"Minimum de vues : {aggs['min_views']['value']}")
+print(f"Total de vues : {aggs['total_views']['value']}")
+```
+
+### Agrégation Stats
+
+Obtenir toutes les statistiques de base en une seule agrégation :
+
+```{python}
+#| echo: true
+#| eval: false
+
+query = {
+    "aggs": {
+        "views_stats": {
+            "stats": {"field": "views"}
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+stats = response['aggregations']['views_stats']
+print(f"Nombre : {stats['count']}")
+print(f"Min : {stats['min']}")
+print(f"Max : {stats['max']}")
+print(f"Moyenne : {stats['avg']:.2f}")
+print(f"Somme : {stats['sum']}")
+```
+
+### Statistiques Étendues
+
+```{python}
+#| echo: true
+#| eval: false
+
+query = {
+    "aggs": {
+        "views_extended_stats": {
+            "extended_stats": {"field": "views"}
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+stats = response['aggregations']['views_extended_stats']
+print(f"Écart-type : {stats['std_deviation']:.2f}")
+print(f"Variance : {stats['variance']:.2f}")
+print(f"Somme des carrés : {stats['sum_of_squares']}")
+```
+
+### Comptage de Valeurs
+
+Compter les valeurs non-nulles :
+
+```{python}
+#| echo: true
+#| eval: false
+
+query = {
+    "aggs": {
+        "posts_with_tags": {
+            "value_count": {"field": "tags"}
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+print(f"Articles avec des tags : {response['aggregations']['posts_with_tags']['value']}")
+```
+
+## Agrégations de Compartiments
+
+### Agrégation Terms
+
+Grouper par valeurs de champ (comme SQL GROUP BY) :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Grouper par auteur
+query = {
+    "aggs": {
+        "posts_by_author": {
+            "terms": {
+                "field": "author",
+                "size": 10  # Top 10 auteurs
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['posts_by_author']['buckets']:
+    print(f"Auteur : {bucket['key']}, Articles : {bucket['doc_count']}")
+```
+
+### Terms avec Métriques
+
+Combiner agrégations de compartiments et métriques :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Articles par auteur avec moyenne de vues
+query = {
+    "aggs": {
+        "posts_by_author": {
+            "terms": {
+                "field": "author",
+                "size": 10,
+                "order": {"avg_views": "desc"}  # Ordonner par moyenne de vues
+            },
+            "aggs": {
+                "avg_views": {
+                    "avg": {"field": "views"}
+                },
+                "total_views": {
+                    "sum": {"field": "views"}
+                }
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['posts_by_author']['buckets']:
+    print(f"Auteur : {bucket['key']}")
+    print(f"  Articles : {bucket['doc_count']}")
+    print(f"  Moyenne de vues : {bucket['avg_views']['value']:.2f}")
+    print(f"  Total de vues : {bucket['total_views']['value']}")
+    print("---")
+```
+
+### Agrégation Range
+
+Grouper les documents en plages :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Grouper les articles par plages de vues
+query = {
+    "aggs": {
+        "views_ranges": {
+            "range": {
+                "field": "views",
+                "ranges": [
+                    {"to": 500, "key": "faible"},
+                    {"from": 500, "to": 1500, "key": "moyen"},
+                    {"from": 1500, "key": "élevé"}
+                ]
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['views_ranges']['buckets']:
+    print(f"{bucket['key']} : {bucket['doc_count']} articles")
+```
+
+### Histogramme de Dates
+
+Grouper par intervalles de temps :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Articles par mois
+query = {
+    "aggs": {
+        "posts_over_time": {
+            "date_histogram": {
+                "field": "published_date",
+                "calendar_interval": "month",
+                "format": "yyyy-MM"
+            },
+            "aggs": {
+                "total_views": {
+                    "sum": {"field": "views"}
+                }
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['posts_over_time']['buckets']:
+    print(f"Mois : {bucket['key_as_string']}")
+    print(f"  Articles : {bucket['doc_count']}")
+    print(f"  Total de vues : {bucket['total_views']['value']}")
+```
+
+### Histogramme
+
+Grouper les valeurs numériques en intervalles :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Distribution des vues par intervalles de 500
+query = {
+    "aggs": {
+        "views_distribution": {
+            "histogram": {
+                "field": "views",
+                "interval": 500
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['views_distribution']['buckets']:
+    print(f"Vues {bucket['key']}-{bucket['key']+500} : {bucket['doc_count']} articles")
+```
+
+### Agrégation Filter
+
+Appliquer des agrégations à un sous-ensemble de documents :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Statistiques uniquement pour les articles populaires
+query = {
+    "aggs": {
+        "popular_posts": {
+            "filter": {
+                "range": {"views": {"gte": 1000}}
+            },
+            "aggs": {
+                "avg_views": {
+                    "avg": {"field": "views"}
+                }
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+popular = response['aggregations']['popular_posts']
+print(f"Nombre d'articles populaires : {popular['doc_count']}")
+print(f"Moyenne de vues : {popular['avg_views']['value']:.2f}")
+```
+
+### Agrégation Filters
+
+Filtres nommés multiples :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Catégoriser les articles par popularité
+query = {
+    "aggs": {
+        "post_categories": {
+            "filters": {
+                "filters": {
+                    "faible_trafic": {"range": {"views": {"lt": 500}}},
+                    "trafic_moyen": {"range": {"views": {"gte": 500, "lt": 1500}}},
+                    "trafic_élevé": {"range": {"views": {"gte": 1500}}}
+                }
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for category, data in response['aggregations']['post_categories']['buckets'].items():
+    print(f"{category} : {data['doc_count']} articles")
+```
+
+## Agrégations Imbriquées
+
+Combiner plusieurs niveaux d'agrégations :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Articles par auteur, puis par tag
+query = {
+    "aggs": {
+        "authors": {
+            "terms": {
+                "field": "author",
+                "size": 10
+            },
+            "aggs": {
+                "tags": {
+                    "terms": {
+                        "field": "tags",
+                        "size": 5
+                    },
+                    "aggs": {
+                        "avg_views": {
+                            "avg": {"field": "views"}
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for author_bucket in response['aggregations']['authors']['buckets']:
+    print(f"\nAuteur : {author_bucket['key']} ({author_bucket['doc_count']} articles)")
+
+    for tag_bucket in author_bucket['tags']['buckets']:
+        print(f"  Tag : {tag_bucket['key']}")
+        print(f"    Nombre : {tag_bucket['doc_count']}")
+        print(f"    Moyenne de vues : {tag_bucket['avg_views']['value']:.2f}")
+```
+
+## Agrégations Pipeline
+
+Traiter la sortie d'autres agrégations :
+
+### Somme Cumulative
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Vues cumulatives dans le temps
+query = {
+    "aggs": {
+        "posts_per_month": {
+            "date_histogram": {
+                "field": "published_date",
+                "calendar_interval": "month"
+            },
+            "aggs": {
+                "monthly_views": {
+                    "sum": {"field": "views"}
+                },
+                "cumulative_views": {
+                    "cumulative_sum": {
+                        "buckets_path": "monthly_views"
+                    }
+                }
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['posts_per_month']['buckets']:
+    print(f"Mois : {bucket['key_as_string']}")
+    print(f"  Mensuel : {bucket['monthly_views']['value']}")
+    print(f"  Cumulatif : {bucket['cumulative_views']['value']}")
+```
+
+### Moyenne Mobile
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Moyenne mobile des vues
+query = {
+    "aggs": {
+        "posts_per_month": {
+            "date_histogram": {
+                "field": "published_date",
+                "calendar_interval": "month"
+            },
+            "aggs": {
+                "monthly_views": {
+                    "sum": {"field": "views"}
+                },
+                "views_moving_avg": {
+                    "moving_avg": {
+                        "buckets_path": "monthly_views",
+                        "window": 3  # Moyenne mobile sur 3 mois
+                    }
+                }
+            }
+        }
+    },
+    "size": 0
+}
+```
+
+### Tri de Compartiments
+
+Trier et limiter les compartiments :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Top 5 auteurs par total de vues
+query = {
+    "aggs": {
+        "authors": {
+            "terms": {
+                "field": "author",
+                "size": 100  # Obtenir tous d'abord
+            },
+            "aggs": {
+                "total_views": {
+                    "sum": {"field": "views"}
+                },
+                "top_authors": {
+                    "bucket_sort": {
+                        "sort": [{"total_views": {"order": "desc"}}],
+                        "size": 5
+                    }
+                }
+            }
+        }
+    },
+    "size": 0
+}
+```
+
+## Cardinalité
+
+Compter les valeurs uniques :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Compter les auteurs et tags uniques
+query = {
+    "aggs": {
+        "unique_authors": {
+            "cardinality": {"field": "author"}
+        },
+        "unique_tags": {
+            "cardinality": {"field": "tags"}
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+print(f"Auteurs uniques : {response['aggregations']['unique_authors']['value']}")
+print(f"Tags uniques : {response['aggregations']['unique_tags']['value']}")
+```
+
+## Percentiles
+
+Calculer les valeurs de percentiles :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Percentiles du nombre de vues
+query = {
+    "aggs": {
+        "views_percentiles": {
+            "percentiles": {
+                "field": "views",
+                "percents": [25, 50, 75, 95, 99]
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+percentiles = response['aggregations']['views_percentiles']['values']
+for percentile, value in percentiles.items():
+    print(f"{percentile}e percentile : {value:.2f} vues")
+```
+
+## Exemples Pratiques
+
+### Exemple 1 : Tableau de Bord d'Analyse de Blog
+
+```{python}
+#| echo: true
+#| eval: false
+
+def get_blog_analytics():
+    """Analyse complète du blog"""
+
+    query = {
+        "aggs": {
+            # Statistiques globales
+            "total_views": {"sum": {"field": "views"}},
+            "avg_views": {"avg": {"field": "views"}},
+
+            # Meilleurs auteurs
+            "top_authors": {
+                "terms": {
+                    "field": "author",
+                    "size": 5,
+                    "order": {"total_views": "desc"}
+                },
+                "aggs": {
+                    "total_views": {"sum": {"field": "views"}},
+                    "avg_views": {"avg": {"field": "views"}}
+                }
+            },
+
+            # Tags populaires
+            "popular_tags": {
+                "terms": {
+                    "field": "tags",
+                    "size": 10
+                },
+                "aggs": {
+                    "avg_views": {"avg": {"field": "views"}}
+                }
+            },
+
+            # Articles dans le temps
+            "posts_timeline": {
+                "date_histogram": {
+                    "field": "published_date",
+                    "calendar_interval": "month"
+                },
+                "aggs": {
+                    "monthly_views": {"sum": {"field": "views"}}
+                }
+            },
+
+            # Distribution des vues
+            "view_ranges": {
+                "range": {
+                    "field": "views",
+                    "ranges": [
+                        {"to": 500, "key": "0-500"},
+                        {"from": 500, "to": 1000, "key": "500-1000"},
+                        {"from": 1000, "to": 2000, "key": "1000-2000"},
+                        {"from": 2000, "key": "2000+"}
+                    ]
+                }
+            }
+        },
+        "size": 0
+    }
+
+    response = es.search(index="blog_posts", body=query)
+    return response['aggregations']
+
+# Obtenir les analyses
+analytics = get_blog_analytics()
+
+print("=== ANALYSE DU BLOG ===\n")
+
+print(f"Total de vues : {analytics['total_views']['value']:.0f}")
+print(f"Moyenne de vues : {analytics['avg_views']['value']:.2f}\n")
+
+print("Meilleurs Auteurs :")
+for bucket in analytics['top_authors']['buckets']:
+    print(f"  {bucket['key']} : {bucket['doc_count']} articles, "
+          f"{bucket['total_views']['value']:.0f} vues totales")
+
+print("\nTags Populaires :")
+for bucket in analytics['popular_tags']['buckets'][:5]:
+    print(f"  {bucket['key']} : {bucket['doc_count']} articles, "
+          f"{bucket['avg_views']['value']:.2f} vues moyennes")
+```
+
+### Exemple 2 : Analyse Temporelle avec Visualisation
+
+```{python}
+#| echo: true
+#| eval: false
+
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+def analyze_posting_trends():
+    """Analyser les tendances de publication dans le temps"""
+
+    query = {
+        "aggs": {
+            "posts_by_month": {
+                "date_histogram": {
+                    "field": "published_date",
+                    "calendar_interval": "month",
+                    "format": "yyyy-MM"
+                },
+                "aggs": {
+                    "total_views": {"sum": {"field": "views"}},
+                    "avg_views": {"avg": {"field": "views"}}
+                }
+            }
+        },
+        "size": 0
+    }
+
+    response = es.search(index="blog_posts", body=query)
+
+    # Extraire les données
+    buckets = response['aggregations']['posts_by_month']['buckets']
+
+    months = [b['key_as_string'] for b in buckets]
+    post_counts = [b['doc_count'] for b in buckets]
+    total_views = [b['total_views']['value'] for b in buckets]
+
+    # Créer la visualisation
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+
+    # Articles par mois
+    ax1.bar(months, post_counts, color='steelblue')
+    ax1.set_xlabel('Mois')
+    ax1.set_ylabel('Nombre d\'Articles')
+    ax1.set_title('Articles par Mois')
+    ax1.tick_params(axis='x', rotation=45)
+
+    # Vues par mois
+    ax2.plot(months, total_views, marker='o', color='coral', linewidth=2)
+    ax2.set_xlabel('Mois')
+    ax2.set_ylabel('Total de Vues')
+    ax2.set_title('Vues par Mois')
+    ax2.tick_params(axis='x', rotation=45)
+
+    plt.tight_layout()
+    plt.savefig('blog_trends.png')
+    print("Visualisation sauvegardée sous 'blog_trends.png'")
+
+    return {
+        "months": months,
+        "posts": post_counts,
+        "views": total_views
+    }
+
+# Note : Décommenter pour exécuter avec des données réelles
+# analyze_posting_trends()
+```
+
+## Meilleures Pratiques d'Agrégation
+
+:::{.callout-tip}
+## Conseils de Performance
+
+1. **Utilisez `size: 0`** lorsque vous avez besoin uniquement d'agrégations, pas de documents
+2. **Limitez les tailles de compartiments** avec le paramètre `size` dans les agrégations terms
+3. **Utilisez des filtres** pour réduire l'ensemble de données avant d'agréger
+4. **Mettez en cache les agrégations de filtre** en utilisant le contexte filter
+5. **Considérez les doc values** - activées par défaut pour les champs keyword et numériques
+:::
+
+### Exemple : Agrégation Efficace
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Bien : Agrégation ciblée avec filtres
+efficient_query = {
+    "query": {
+        "range": {
+            "published_date": {"gte": "2024-01-01"}
+        }
+    },
+    "aggs": {
+        "recent_authors": {
+            "terms": {
+                "field": "author",
+                "size": 10  # Limiter les résultats
+            }
+        }
+    },
+    "size": 0  # Pas de documents nécessaires
+}
+
+# À éviter : Agrégations sans limites
+# "terms": {"field": "author"}  # Pas de limite de taille
+```
+
+:::{.callout-tip}
+## Prochaines Étapes
+Félicitations ! Vous comprenez maintenant les fondamentaux d'Elasticsearch. Consultez la section Sujets Avancés pour le clustering, l'optimisation et les meilleures pratiques de production.
+:::
+
+---
+
+## Télécharger le Notebook
+
+:::{.callout-note}
+## Notebook Jupyter
+Téléchargez cette section sous forme de notebook Jupyter interactif pour exécuter les exemples sur votre propre machine.
+
+[Télécharger aggregations.ipynb](aggregations.ipynb){.btn .btn-primary download="aggregations.ipynb"}
+:::

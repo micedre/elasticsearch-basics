@@ -1,0 +1,64 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "fr/index.qmd"
+    - "fr/content/*.qmd"
+
+website:
+  title: "Formation Elasticsearch"
+  navbar:
+    left:
+      - text: "Accueil"
+        href: index.html
+      - text: "Démarrage"
+        href: content/getting-started.html
+      - text: "Concepts"
+        href: content/core-concepts.html
+      - text: "Indexation"
+        href: content/indexing.html
+      - text: "Recherche"
+        href: content/search.html
+      - text: "Agrégations"
+        href: content/aggregations.html
+      - text: "Avancé"
+        href: content/advanced.html
+      - text: "Téléchargements"
+        href: content/downloads.html
+    right:
+      - text: "🇬🇧 English"
+        href: "javascript:switchToEnglish()"
+
+  page-footer:
+    center: |
+      <script>
+      function switchToEnglish() {
+        const currentPath = window.location.pathname;
+        // Replace /fr/ with /en/ in the path
+        const newPath = currentPath.replace('/fr/', '/en/');
+        window.location.href = newPath;
+      }
+      </script>
+
+  sidebar:
+    style: "docked"
+    search: true
+    contents:
+      - section: "Introduction"
+        contents:
+          - fr/index.qmd
+          - fr/content/getting-started.qmd
+      - section: "Fondamentaux"
+        contents:
+          - fr/content/core-concepts.qmd
+          - fr/content/indexing.qmd
+      - section: "Manipulation des Données"
+        contents:
+          - fr/content/search.qmd
+          - fr/content/aggregations.qmd
+      - section: "Avancé"
+        contents:
+          - fr/content/advanced.qmd
+      - section: "Ressources"
+        contents:
+          - fr/content/downloads.qmd

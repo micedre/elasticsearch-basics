@@ -1,0 +1,751 @@
+---
+title: "Sujets Avancés"
+---
+
+## Introduction
+
+Cette section couvre les concepts avancés d'Elasticsearch pour les déploiements en production, l'optimisation des performances et les cas d'usage spécialisés.
+
+## Gestion de Cluster
+
+### Santé et Surveillance du Cluster
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Santé détaillée du cluster
+health = es.cluster.health()
+
+print(f"Nom du cluster : {health['cluster_name']}")
+print(f"Statut : {health['status']}")  # green, yellow, red
+print(f"Fragments actifs : {health['active_shards']}")
+print(f"Fragments en relocalisation : {health['relocating_shards']}")
+print(f"Fragments non assignés : {health['unassigned_shards']}")
+
+# Statistiques des nœuds
+nodes_stats = es.nodes.stats()
+for node_id, stats in nodes_stats['nodes'].items():
+    print(f"\nNœud : {stats['name']}")
+    print(f"  Mémoire JVM utilisée : {stats['jvm']['mem']['heap_used_percent']}%")
+    print(f"  Utilisation CPU : {stats['os']['cpu']['percent']}%")
+    print(f"  Disque disponible : {stats['fs']['total']['available_in_bytes'] / (1024**3):.2f} GB")
+```
+
+### État du Cluster
+
+Comprendre les couleurs de santé du cluster :
+
+- **Vert** : Tous les fragments primaires et répliques sont alloués
+- **Jaune** : Tous les fragments primaires sont alloués, mais certaines répliques ne le sont pas
+- **Rouge** : Certains fragments primaires ne sont pas alloués
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Obtenir des informations détaillées sur l'allocation
+allocation = es.cat.allocation(format='json', v=True)
+
+for alloc in allocation:
+    print(f"Nœud : {alloc['node']}")
+    print(f"  Fragments : {alloc['shards']}")
+    print(f"  Disque utilisé : {alloc['disk.percent']}%")
+```
+
+## Modèles d'Index
+
+Définir des modèles pour la configuration automatique d'index :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Créer un modèle d'index
+template = {
+    "index_patterns": ["logs-*"],  # S'applique aux index correspondant au motif
+    "template": {
+        "settings": {
+            "number_of_shards": 2,
+            "number_of_replicas": 1,
+            "refresh_interval": "30s"
+        },
+        "mappings": {
+            "properties": {
+                "timestamp": {"type": "date"},
+                "level": {"type": "keyword"},
+                "message": {"type": "text"},
+                "service": {"type": "keyword"},
+                "user_id": {"type": "keyword"}
+            }
+        }
+    },
+    "priority": 100  # Les modèles de priorité plus élevée remplacent les plus bas
+}
+
+es.indices.put_index_template(
+    name="logs-template",
+    body=template
+)
+
+print("Modèle créé")
+
+# Maintenant, tout index correspondant à "logs-*" utilisera ce modèle
+es.indices.create(index="logs-2024-01")  # Utilise le modèle automatiquement
+```
+
+## Gestion du Cycle de Vie des Index (ILM)
+
+Automatiser le cycle de vie des index avec des politiques :
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Définir une politique ILM
+ilm_policy = {
+    "policy": {
+        "phases": {
+            "hot": {
+                "actions": {
+                    "rollover": {
+                        "max_size": "50GB",
+                        "max_age": "30d"
+                    }
+                }
+            },
+            "warm": {
+                "min_age": "7d",
+                "actions": {
+                    "shrink": {
+                        "number_of_shards": 1
+                    },
+                    "forcemerge": {
+                        "max_num_segments": 1
+                    }
+                }
+            },
+            "cold": {
+                "min_age": "30d",
+                "actions": {
+                    "freeze": {}
+                }
+            },
+            "delete": {
+                "min_age": "90d",
+                "actions": {
+                    "delete": {}
+                }
+            }
+        }
+    }
+}
+
+# Créer la politique ILM
+es.ilm.put_lifecycle(policy="logs-policy", body=ilm_policy)
+
+# Appliquer au modèle d'index
+template_with_ilm = {
+    "index_patterns": ["logs-*"],
+    "template": {
+        "settings": {
+            "index.lifecycle.name": "logs-policy",
+            "index.lifecycle.rollover_alias": "logs"
+        }
+    }
+}
+
+es.indices.put_index_template(
+    name="logs-ilm-template",
+    body=template_with_ilm
+)
+```
+
+## Snapshots et Restauration
+
+### Créer un Dépôt
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Créer un dépôt système de fichiers (nécessite le paramètre path.repo)
+repository_config = {
+    "type": "fs",
+    "settings": {
+        "location": "/backup/elasticsearch",
+        "compress": True
+    }
+}
+
+es.snapshot.create_repository(
+    repository="backup_repo",
+    body=repository_config
+)
+
+# Pour le stockage cloud (exemple S3)
+s3_repository = {
+    "type": "s3",
+    "settings": {
+        "bucket": "my-elasticsearch-backups",
+        "region": "us-east-1",
+        "compress": True
+    }
+}
+```
+
+### Créer un Snapshot
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Snapshot d'index spécifiques
+snapshot_config = {
+    "indices": "blog_posts,user_profiles",
+    "ignore_unavailable": True,
+    "include_global_state": False
+}
+
+es.snapshot.create(
+    repository="backup_repo",
+    snapshot="snapshot_2024_01",
+    body=snapshot_config
+)
+
+# Vérifier le statut du snapshot
+status = es.snapshot.status(
+    repository="backup_repo",
+    snapshot="snapshot_2024_01"
+)
+
+print(f"État du snapshot : {status['snapshots'][0]['state']}")
+```
+
+### Restaurer depuis un Snapshot
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Restaurer les index
+restore_config = {
+    "indices": "blog_posts",
+    "ignore_unavailable": True,
+    "include_global_state": False,
+    "rename_pattern": "(.+)",
+    "rename_replacement": "restored_$1"  # Préfixer avec "restored_"
+}
+
+es.snapshot.restore(
+    repository="backup_repo",
+    snapshot="snapshot_2024_01",
+    body=restore_config
+)
+```
+
+## Optimisation des Performances
+
+### Meilleures Pratiques d'Indexation en Masse
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import helpers
+
+def optimized_bulk_indexing(documents, index_name):
+    """Indexation en masse optimisée avec les meilleures pratiques"""
+
+    # 1. Désactiver le rafraîchissement pendant l'indexation en masse
+    es.indices.put_settings(
+        index=index_name,
+        body={"index": {"refresh_interval": "-1"}}
+    )
+
+    # 2. Augmenter le nombre de répliques après l'indexation
+    es.indices.put_settings(
+        index=index_name,
+        body={"index": {"number_of_replicas": 0}}
+    )
+
+    try:
+        # 3. Utiliser l'helper bulk avec une taille de chunk optimale
+        success, failed = helpers.bulk(
+            es,
+            documents,
+            chunk_size=500,  # Ajuster selon la taille du document
+            request_timeout=60
+        )
+
+        print(f"{success} documents indexés")
+
+    finally:
+        # 4. Réactiver le rafraîchissement
+        es.indices.put_settings(
+            index=index_name,
+            body={"index": {"refresh_interval": "1s"}}
+        )
+
+        # 5. Restaurer les répliques
+        es.indices.put_settings(
+            index=index_name,
+            body={"index": {"number_of_replicas": 1}}
+        )
+
+        # 6. Force merge pour optimiser les segments
+        es.indices.forcemerge(
+            index=index_name,
+            max_num_segments=1
+        )
+
+# Exemple d'utilisation
+# documents = [{"_index": "my_index", "_source": {...}} for _ in range(10000)]
+# optimized_bulk_indexing(documents, "my_index")
+```
+
+### Optimisation des Requêtes
+
+```{python}
+#| echo: true
+#| eval: false
+
+# 1. Utiliser le contexte filter (mis en cache, pas de scoring)
+optimized_query = {
+    "query": {
+        "bool": {
+            "must": [
+                {"match": {"content": "elasticsearch"}}  # Avec score
+            ],
+            "filter": [  # Mis en cache, sans score
+                {"term": {"status": "published"}},
+                {"range": {"published_date": {"gte": "2024-01-01"}}}
+            ]
+        }
+    }
+}
+
+# 2. Utiliser le filtrage de source
+optimized_query["_source"] = ["title", "author"]  # Retourner uniquement les champs nécessaires
+
+# 3. Utiliser size de manière appropriée
+optimized_query["size"] = 10  # Ne pas sur-récupérer
+
+# 4. Utiliser le cache de requêtes pour les agrégations
+aggregation_query = {
+    "query": {"match_all": {}},
+    "aggs": {
+        "popular_tags": {
+            "terms": {"field": "tags"}
+        }
+    },
+    "size": 0
+}
+
+# Le cache de requêtes est automatique pour les requêtes size=0
+```
+
+### Dimensionnement des Fragments
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Calculer la taille optimale des fragments
+def calculate_shard_settings(total_data_gb, avg_doc_size_kb):
+    """
+    Calculer les paramètres optimaux de fragments
+
+    Meilleures pratiques :
+    - Taille de fragment : 10-50 GB
+    - Fragments par nœud : 20-25 par GB de heap
+    """
+
+    # Taille cible de fragment (GB)
+    target_shard_size = 30
+
+    # Calculer le nombre de fragments
+    num_shards = max(1, int(total_data_gb / target_shard_size))
+
+    # Calculer la taille de fragment attendue
+    shard_size = total_data_gb / num_shards
+
+    return {
+        "number_of_shards": num_shards,
+        "expected_shard_size_gb": shard_size,
+        "recommendation": "Bon" if 10 <= shard_size <= 50 else "À revoir"
+    }
+
+# Exemple
+settings = calculate_shard_settings(total_data_gb=100, avg_doc_size_kb=10)
+print(settings)
+```
+
+## Analyseurs Personnalisés
+
+### Création d'Analyseurs Personnalisés
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Configuration d'analyseur avancée
+custom_analyzer_config = {
+    "settings": {
+        "analysis": {
+            "char_filter": {
+                "quotes_filter": {
+                    "type": "mapping",
+                    "mappings": [
+                        "« => \"",
+                        "» => \""
+                    ]
+                }
+            },
+            "tokenizer": {
+                "edge_ngram_tokenizer": {
+                    "type": "edge_ngram",
+                    "min_gram": 2,
+                    "max_gram": 10,
+                    "token_chars": ["letter", "digit"]
+                }
+            },
+            "filter": {
+                "custom_stop": {
+                    "type": "stop",
+                    "stopwords": ["le", "la", "un", "une"]
+                },
+                "custom_stemmer": {
+                    "type": "stemmer",
+                    "language": "french"
+                },
+                "custom_synonym": {
+                    "type": "synonym",
+                    "synonyms": [
+                        "rapide,vite,prompt",
+                        "ordinateur portable,laptop,notebook"
+                    ]
+                }
+            },
+            "analyzer": {
+                "custom_search_analyzer": {
+                    "type": "custom",
+                    "char_filter": ["quotes_filter"],
+                    "tokenizer": "standard",
+                    "filter": [
+                        "lowercase",
+                        "custom_stop",
+                        "custom_synonym",
+                        "custom_stemmer"
+                    ]
+                },
+                "autocomplete_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "edge_ngram_tokenizer",
+                    "filter": ["lowercase"]
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "title": {
+                "type": "text",
+                "analyzer": "custom_search_analyzer"
+            },
+            "title_autocomplete": {
+                "type": "text",
+                "analyzer": "autocomplete_analyzer",
+                "search_analyzer": "standard"
+            }
+        }
+    }
+}
+
+es.indices.create(index="advanced_search", body=custom_analyzer_config)
+```
+
+### Test des Analyseurs
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Tester comment un analyseur traite le texte
+analyze_request = {
+    "analyzer": "custom_search_analyzer",
+    "text": "Le Rapide Renard Brun saute par-dessus les Ordinateurs portables"
+}
+
+result = es.indices.analyze(index="advanced_search", body=analyze_request)
+
+print("Tokens produits :")
+for token in result['tokens']:
+    print(f"  {token['token']} (position : {token['position']})")
+```
+
+## Requêtes Géographiques
+
+### Requêtes Geo Point
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Définir le mapping avec geo_point
+geo_mapping = {
+    "mappings": {
+        "properties": {
+            "name": {"type": "text"},
+            "location": {"type": "geo_point"}
+        }
+    }
+}
+
+es.indices.create(index="places", body=geo_mapping)
+
+# Indexer des documents avec des localisations
+places = [
+    {
+        "name": "Tour Eiffel",
+        "location": {"lat": 48.858370, "lon": 2.294481}
+    },
+    {
+        "name": "Arc de Triomphe",
+        "location": {"lat": 48.873792, "lon": 2.295028}
+    }
+]
+
+for i, place in enumerate(places):
+    es.index(index="places", id=i, document=place)
+
+# Rechercher dans une distance
+geo_query = {
+    "query": {
+        "bool": {
+            "filter": {
+                "geo_distance": {
+                    "distance": "5km",
+                    "location": {
+                        "lat": 48.8566,
+                        "lon": 2.3522
+                    }
+                }
+            }
+        }
+    }
+}
+
+response = es.search(index="places", body=geo_query)
+
+for hit in response['hits']['hits']:
+    print(f"Trouvé : {hit['_source']['name']}")
+```
+
+## Scripts
+
+### Scripts Painless
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Script dans une requête
+script_query = {
+    "query": {
+        "script_score": {
+            "query": {"match_all": {}},
+            "script": {
+                "source": "Math.log(2 + doc['views'].value) * params.boost",
+                "params": {
+                    "boost": 1.5
+                }
+            }
+        }
+    }
+}
+
+# Script dans une mise à jour
+script_update = {
+    "script": {
+        "source": """
+            if (ctx._source.views == null) {
+                ctx._source.views = 1;
+            } else {
+                ctx._source.views += params.increment;
+            }
+            ctx._source.last_updated = params.timestamp;
+        """,
+        "params": {
+            "increment": 1,
+            "timestamp": "2024-01-15"
+        }
+    }
+}
+
+es.update(index="blog_posts", id="post_001", body=script_update)
+```
+
+## Meilleures Pratiques de Sécurité
+
+### Liste de Vérification de Sécurité de Base
+
+1. **Activer X-Pack Security** (intégré dans les versions récentes)
+2. **Utiliser HTTPS/TLS** pour toutes les communications
+3. **Implémenter l'Authentification** : Clés API, Basic auth, ou OAuth
+4. **Contrôle d'Accès Basé sur les Rôles (RBAC)**
+5. **Journalisation d'Audit**
+6. **Sécurité Réseau** : Règles de pare-feu, VPC
+7. **Chiffrement au Repos**
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Se connecter avec authentification
+from elasticsearch import Elasticsearch
+
+# Authentification de base
+es = Elasticsearch(
+    ['https://localhost:9200'],
+    basic_auth=('nom_utilisateur', 'mot_de_passe'),
+    ca_certs='/chemin/vers/ca.crt'
+)
+
+# Authentification par clé API
+es = Elasticsearch(
+    ['https://localhost:9200'],
+    api_key=('api_key_id', 'api_key_secret')
+)
+
+# Cloud ID avec authentification
+es = Elasticsearch(
+    cloud_id='deployment:dXMtZWFzdC0xLmF3cy5mb3VuZC5pbyQ...',
+    basic_auth=('elastic', 'mot_de_passe')
+)
+```
+
+## Surveillance et Alertes
+
+### Métriques Clés à Surveiller
+
+```{python}
+#| echo: true
+#| eval: false
+
+def get_cluster_metrics():
+    """Obtenir les métriques clés du cluster pour la surveillance"""
+
+    metrics = {}
+
+    # Santé du cluster
+    health = es.cluster.health()
+    metrics['cluster_status'] = health['status']
+    metrics['active_shards'] = health['active_shards']
+    metrics['unassigned_shards'] = health['unassigned_shards']
+
+    # Statistiques des nœuds
+    nodes = es.nodes.stats()
+    total_jvm_heap = 0
+    total_cpu = 0
+    node_count = 0
+
+    for node_id, node in nodes['nodes'].items():
+        total_jvm_heap += node['jvm']['mem']['heap_used_percent']
+        total_cpu += node['os']['cpu']['percent']
+        node_count += 1
+
+    metrics['avg_jvm_heap_percent'] = total_jvm_heap / node_count
+    metrics['avg_cpu_percent'] = total_cpu / node_count
+
+    # Statistiques d'index
+    indices = es.indices.stats()
+    metrics['total_docs'] = indices['_all']['total']['docs']['count']
+    metrics['total_size_bytes'] = indices['_all']['total']['store']['size_in_bytes']
+
+    # Performance de recherche
+    metrics['search_queries_total'] = indices['_all']['total']['search']['query_total']
+    metrics['search_time_ms'] = indices['_all']['total']['search']['query_time_in_millis']
+
+    return metrics
+
+# Surveiller les métriques
+# metrics = get_cluster_metrics()
+# print(metrics)
+```
+
+## Modèles de Production Courants
+
+### Modèle de Données de Séries Temporelles
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Utiliser un index par période de temps
+def create_daily_index(base_name, date):
+    """Créer un index quotidien pour les logs/métriques"""
+    index_name = f"{base_name}-{date.strftime('%Y.%m.%d')}"
+
+    if not es.indices.exists(index=index_name):
+        es.indices.create(
+            index=index_name,
+            body={
+                "settings": {
+                    "number_of_shards": 3,
+                    "number_of_replicas": 1
+                }
+            }
+        )
+
+    return index_name
+
+# Utiliser un alias pour les requêtes
+def setup_alias(base_name):
+    """Configurer un alias rotatif"""
+    es.indices.put_alias(
+        index=f"{base_name}-*",
+        name=f"{base_name}-current"
+    )
+
+# Requête en utilisant l'alias
+# es.search(index="logs-current", body=query)
+```
+
+:::{.callout-tip}
+## Liste de Vérification de Production
+
+Avant de passer en production :
+
+- [ ] Activer la sécurité (authentification et chiffrement)
+- [ ] Configurer la surveillance et les alertes
+- [ ] Configurer les snapshots/sauvegardes
+- [ ] Implémenter les politiques ILM
+- [ ] Dimensionner les fragments de manière appropriée
+- [ ] Tester les procédures de récupération après sinistre
+- [ ] Documenter la configuration du cluster
+- [ ] Configurer la journalisation appropriée
+- [ ] Configurer les limites de ressources
+- [ ] Planifier la capacité et la mise à l'échelle
+:::
+
+## Résumé
+
+L'utilisation avancée d'Elasticsearch implique :
+
+1. **Gestion de Cluster** : Surveillance de la santé, des nœuds et des ressources
+2. **Automatisation** : Modèles d'index, politiques ILM
+3. **Sauvegarde et Récupération** : Procédures de snapshots et restauration
+4. **Performance** : Techniques d'optimisation pour l'indexation et les requêtes
+5. **Analyse Personnalisée** : Traitement de texte spécialisé
+6. **Requêtes Géographiques** : Recherche basée sur la localisation
+7. **Scripts** : Calculs et mises à jour dynamiques
+8. **Sécurité** : Authentification, autorisation, chiffrement
+9. **Surveillance** : Suivi des métriques clés et alertes
+10. **Modèles de Production** : Meilleures pratiques pour les déploiements réels
+
+Félicitations pour avoir complété cette formation Elasticsearch ! Vous avez maintenant les connaissances pour construire, déployer et gérer des clusters Elasticsearch en production.

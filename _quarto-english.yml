@@ -1,0 +1,64 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "en/index.qmd"
+    - "en/content/*.qmd"
+
+website:
+  title: "Elasticsearch Training"
+  navbar:
+    left:
+      - text: "Home"
+        href: index.html
+      - text: "Getting Started"
+        href: content/getting-started.html
+      - text: "Core Concepts"
+        href: content/core-concepts.html
+      - text: "Indexing & Documents"
+        href: content/indexing.html
+      - text: "Search & Queries"
+        href: content/search.html
+      - text: "Aggregations"
+        href: content/aggregations.html
+      - text: "Advanced Topics"
+        href: content/advanced.html
+      - text: "Downloads"
+        href: content/downloads.html
+    right:
+      - text: "🇫🇷 Français"
+        href: "javascript:switchToFrench()"
+
+  page-footer:
+    center: |
+      <script>
+      function switchToFrench() {
+        const currentPath = window.location.pathname;
+        // Replace /en/ with /fr/ in the path
+        const newPath = currentPath.replace('/en/', '/fr/');
+        window.location.href = newPath;
+      }
+      </script>
+
+  sidebar:
+    style: "docked"
+    search: true
+    contents:
+      - section: "Introduction"
+        contents:
+          - en/index.qmd
+          - en/content/getting-started.qmd
+      - section: "Fundamentals"
+        contents:
+          - en/content/core-concepts.qmd
+          - en/content/indexing.qmd
+      - section: "Working with Data"
+        contents:
+          - en/content/search.qmd
+          - en/content/aggregations.qmd
+      - section: "Advanced"
+        contents:
+          - en/content/advanced.qmd
+      - section: "Resources"
+        contents:
+          - en/content/downloads.qmd
