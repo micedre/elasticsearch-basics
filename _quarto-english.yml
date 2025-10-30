@@ -13,16 +13,14 @@ website:
         href: en/index.html
       - text: "Getting Started"
         href: en/content/getting-started.html
-      - text: "Core Concepts"
-        href: en/content/core-concepts.html
-      - text: "Indexing & Documents"
-        href: en/content/indexing.html
-      - text: "Search & Queries"
-        href: en/content/search.html
-      - text: "Aggregations"
-        href: en/content/aggregations.html
-      - text: "Advanced Topics"
-        href: en/content/advanced.html
+      - text: "Concepts & Architecture"
+        href: en/content/concepts-architecture.html
+      - text: "Index Configuration"
+        href: en/content/index-configuration.html
+      - text: "Query Languages"
+        href: en/content/query-languages.html
+      - text: "Kibana Dashboards"
+        href: en/content/kibana-dashboards.html
       - text: "Downloads"
         href: en/content/downloads.html
     right:
@@ -48,17 +46,12 @@ website:
         contents:
           - en/index.qmd
           - en/content/getting-started.qmd
-      - section: "Fundamentals"
+      - section: "Core Topics"
         contents:
-          - en/content/core-concepts.qmd
-          - en/content/indexing.qmd
-      - section: "Working with Data"
-        contents:
-          - en/content/search.qmd
-          - en/content/aggregations.qmd
-      - section: "Advanced"
-        contents:
-          - en/content/advanced.qmd
+          - en/content/concepts-architecture.qmd
+          - en/content/index-configuration.qmd
+          - en/content/query-languages.qmd
+          - en/content/kibana-dashboards.qmd
       - section: "Resources"
         contents:
           - en/content/downloads.qmd

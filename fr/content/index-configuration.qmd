@@ -1,0 +1,650 @@
+---
+title: "Configuration d'Index"
+format:
+    html: default
+    ipynb: default
+---
+
+## Introduction
+
+La configuration d'index définit comment Elasticsearch stocke et traite vos données. Une configuration appropriée est cruciale pour la pertinence de la recherche, les performances et l'efficacité du stockage.
+
+## Aperçu des Mappings
+
+Le **mapping** est le processus de définition de la façon dont les documents et leurs champs sont stockés et indexés. C'est similaire à un schéma dans les bases de données relationnelles.
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Obtenir le mapping d'un index
+mapping = es.indices.get_mapping(index="blog_posts")
+print(mapping)
+```
+
+### Mapping Dynamique vs Explicite
+
+- **Mapping Dynamique**: Elasticsearch détecte automatiquement les types de champs
+- **Mapping Explicite**: Vous définissez les types de champs à l'avance (recommandé pour la production)
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Elasticsearch détecte automatiquement les types (mapping dynamique)
+es.index(
+    index="auto_mapped",
+    document={
+        "title": "Bonjour le monde",  # → text
+        "count": 42,                   # → long
+        "price": 19.99,                # → float
+        "active": True,                # → boolean
+        "date": "2024-01-15"          # → date
+    }
+)
+```
+
+:::{.callout-warning}
+## Risques du Mapping Dynamique
+- La détection de type peut être erronée
+- Impossible de changer le mapping des champs existants
+- Impact sur les performances de la détection de type
+- **Utilisez toujours des mappings explicites en production!**
+:::
+
+## Types de Champs
+
+### Text vs Keyword
+
+La distinction la plus importante dans Elasticsearch:
+
+| Type | Usage | Analysé | Agrégeable | Cas d'Usage Exemple |
+|------|-------|---------|------------|---------------------|
+| `text` | Recherche plein texte | ✅ Oui | ❌ Non | Contenu d'article, descriptions |
+| `keyword` | Correspondance exacte | ❌ Non | ✅ Oui | Tags, statut, IDs, catégories |
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Créer un index avec text vs keyword
+es.indices.create(
+    index="products",
+    body={
+        "mappings": {
+            "properties": {
+                "description": {
+                    "type": "text"  # Recherche plein texte
+                },
+                "sku": {
+                    "type": "keyword"  # Correspondance exacte, agrégations
+                },
+                "category": {
+                    "type": "keyword"
+                }
+            }
+        }
+    }
+)
+
+# Champ text - trouve des correspondances même avec des mots partiels
+es.search(
+    index="products",
+    body={"query": {"match": {"description": "course"}}}  # Trouve "chaussures de course"
+)
+
+# Champ keyword - doit correspondre exactement
+es.search(
+    index="products",
+    body={"query": {"term": {"category": "electronique"}}}  # Exact: "electronique"
+)
+```
+
+### Types Numériques
+
+| Type | Plage | Cas d'Usage |
+|------|-------|-------------|
+| `long` | -2^63 à 2^63-1 | Grands entiers, IDs |
+| `integer` | -2^31 à 2^31-1 | Entiers réguliers |
+| `short` | -32,768 à 32,767 | Petits entiers |
+| `byte` | -128 à 127 | Très petits entiers |
+| `double` | Flottant 64-bit | Décimaux précis |
+| `float` | Flottant 32-bit | Décimaux |
+| `half_float` | Flottant 16-bit | Décimaux moins précis |
+
+```{python}
+#| echo: true
+#| eval: false
+
+mapping = {
+    "mappings": {
+        "properties": {
+            "price": {"type": "float"},
+            "quantity": {"type": "integer"},
+            "rating": {"type": "half_float"},  # 1.0-5.0 ne nécessite pas double précision
+            "views": {"type": "long"}
+        }
+    }
+}
+```
+
+### Types de Dates
+
+```{python}
+#| echo: true
+#| eval: false
+
+date_mapping = {
+    "mappings": {
+        "properties": {
+            "created_at": {
+                "type": "date",
+                "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis"
+            },
+            "updated_at": {
+                "type": "date"
+            }
+        }
+    }
+}
+
+es.indices.create(index="events", body=date_mapping)
+
+# Indexer avec différents formats de date
+es.index(index="events", document={"created_at": "2024-01-15 14:30:00"})
+es.index(index="events", document={"created_at": "2024-01-16"})
+es.index(index="events", document={"created_at": 1705334400000})  # epoch
+```
+
+### Type Booléen
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Champ booléen
+mapping = {
+    "mappings": {
+        "properties": {
+            "is_active": {"type": "boolean"},
+            "in_stock": {"type": "boolean"}
+        }
+    }
+}
+
+# Accepte: true, false, "true", "false"
+es.index(index="products", document={"in_stock": True})
+es.index(index="products", document={"in_stock": "true"})  # Fonctionne aussi
+```
+
+### Types Nested et Object
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Type object (par défaut pour JSON imbriqué)
+object_mapping = {
+    "mappings": {
+        "properties": {
+            "user": {
+                "properties": {
+                    "name": {"type": "text"},
+                    "email": {"type": "keyword"}
+                }
+            }
+        }
+    }
+}
+
+# Type nested (maintient les relations de tableau)
+nested_mapping = {
+    "mappings": {
+        "properties": {
+            "comments": {
+                "type": "nested",
+                "properties": {
+                    "author": {"type": "keyword"},
+                    "text": {"type": "text"},
+                    "rating": {"type": "integer"}
+                }
+            }
+        }
+    }
+}
+
+es.indices.create(index="posts", body=nested_mapping)
+
+# Indexer un document avec des objets imbriqués
+es.index(
+    index="posts",
+    document={
+        "title": "Excellent Produit",
+        "comments": [
+            {"author": "user1", "text": "Incroyable!", "rating": 5},
+            {"author": "user2", "text": "Pas mal", "rating": 3}
+        ]
+    }
+)
+```
+
+### Mappings Multi-champs
+
+Stocker le même champ de plusieurs façons:
+
+```{python}
+#| echo: true
+#| eval: false
+
+multi_field_mapping = {
+    "mappings": {
+        "properties": {
+            "title": {
+                "type": "text",  # Pour la recherche plein texte
+                "fields": {
+                    "keyword": {  # Pour correspondance exacte, tri, agrégations
+                        "type": "keyword"
+                    },
+                    "french": {  # Avec stemming
+                        "type": "text",
+                        "analyzer": "french"
+                    }
+                }
+            }
+        }
+    }
+}
+
+es.indices.create(index="articles", body=multi_field_mapping)
+
+# Maintenant vous pouvez utiliser différentes versions:
+# - title → recherche plein texte
+# - title.keyword → correspondance exacte, tri
+# - title.french → recherche avec stemming
+```
+
+## Analyse de Texte
+
+### Le Processus d'Analyse
+
+L'analyse de texte transforme le texte en tokens pour l'indexation et la recherche.
+
+**Pipeline d'Analyse:**
+1. **Filtres de Caractères**: Pré-traiter le texte
+2. **Tokenizer**: Diviser en tokens
+3. **Filtres de Tokens**: Modifier les tokens
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Tester l'analyse
+text = "Les Renards BRUNS Rapides ont sauté par-dessus 2 chiens paresseux!"
+
+result = es.indices.analyze(
+    body={
+        "analyzer": "standard",
+        "text": text
+    }
+)
+
+print("Tokens de l'analyseur standard:")
+for token in result['tokens']:
+    print(f"  {token['token']}")
+
+# Sortie: ["les", "renards", "bruns", "rapides", "ont", "sauté", "par", "dessus", "2", "chiens", "paresseux"]
+```
+
+### Analyseurs Intégrés
+
+| Analyseur | Description | Cas d'Usage |
+|-----------|-------------|-------------|
+| `standard` | Par défaut, divise sur les limites de mots | Usage général |
+| `simple` | Divise sur non-lettres, minuscules | Recherche basique |
+| `whitespace` | Divise uniquement sur les espaces | Préserver casse/ponctuation |
+| `keyword` | Pas d'analyse, stocke tel quel | Correspondance exacte |
+| `french` | Analyse de langue française | Texte français |
+| `stop` | Supprime les mots vides | Réduire le bruit |
+
+```{python}
+#| echo: true
+#| eval: false
+
+analyzers = ["standard", "simple", "french", "whitespace"]
+text = "Les Renards-Rapides BRUNS"
+
+for analyzer in analyzers:
+    result = es.indices.analyze(body={"analyzer": analyzer, "text": text})
+    tokens = [t['token'] for t in result['tokens']]
+    print(f"{analyzer:15} → {tokens}")
+
+# Sortie:
+# standard        → ['les', 'renards', 'rapides', 'bruns']
+# simple          → ['les', 'renards', 'rapides', 'bruns']
+# french          → ['renard', 'rapid', 'brun']  # stemmé, mots vides supprimés
+# whitespace      → ['Les', 'Renards-Rapides', 'BRUNS']  # casse préservée
+```
+
+### Analyseurs Personnalisés
+
+Construisez votre propre analyseur en combinant des composants:
+
+```{python}
+#| echo: true
+#| eval: false
+
+custom_analyzer_config = {
+    "settings": {
+        "analysis": {
+            "char_filter": {
+                "replace_ampersand": {
+                    "type": "mapping",
+                    "mappings": ["& => et"]
+                }
+            },
+            "tokenizer": {
+                "edge_ngram_tokenizer": {
+                    "type": "edge_ngram",
+                    "min_gram": 2,
+                    "max_gram": 10,
+                    "token_chars": ["letter", "digit"]
+                }
+            },
+            "filter": {
+                "french_stop": {
+                    "type": "stop",
+                    "stopwords": "_french_"
+                },
+                "french_stemmer": {
+                    "type": "stemmer",
+                    "language": "french"
+                },
+                "french_elision": {
+                    "type": "elision",
+                    "articles_case": True,
+                    "articles": ["l", "m", "t", "qu", "n", "s", "j", "d", "c", "jusqu", "quoiqu", "lorsqu", "puisqu"]
+                }
+            },
+            "analyzer": {
+                "custom_french": {
+                    "type": "custom",
+                    "char_filter": ["replace_ampersand"],
+                    "tokenizer": "standard",
+                    "filter": [
+                        "lowercase",
+                        "french_elision",
+                        "french_stop",
+                        "french_stemmer"
+                    ]
+                },
+                "autocomplete": {
+                    "type": "custom",
+                    "tokenizer": "edge_ngram_tokenizer",
+                    "filter": ["lowercase"]
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "title": {
+                "type": "text",
+                "analyzer": "custom_french"
+            },
+            "title_autocomplete": {
+                "type": "text",
+                "analyzer": "autocomplete",
+                "search_analyzer": "standard"  # Différent pour la recherche!
+            }
+        }
+    }
+}
+
+es.indices.create(index="search_optimized", body=custom_analyzer_config)
+```
+
+### Tokenizers
+
+Tokenizers communs:
+
+```{python}
+#| echo: true
+#| eval: false
+
+tokenizers_demo = {
+    "standard": "Rapide-Brun RENARD",
+    "letter": "Rapide-Brun RENARD",
+    "whitespace": "Rapide-Brun RENARD",
+    "ngram": "chat"  # Génère: c, ch, cha, chat, h, ha, hat, a, at, t
+}
+
+for tokenizer, text in tokenizers_demo.items():
+    result = es.indices.analyze(
+        body={"tokenizer": tokenizer, "text": text}
+    )
+    tokens = [t['token'] for t in result['tokens']]
+    print(f"{tokenizer:12} → {tokens}")
+```
+
+### Filtres de Tokens
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Tester les filtres de tokens
+text = "Les Renards BRUNS courent rapidement"
+
+# Filtre lowercase
+result = es.indices.analyze(
+    body={
+        "tokenizer": "standard",
+        "filter": ["lowercase"],
+        "text": text
+    }
+)
+
+# Filtre stemmer
+result = es.indices.analyze(
+    body={
+        "tokenizer": "standard",
+        "filter": ["lowercase", "french_stem"],
+        "text": text
+    }
+)
+
+# Filtre stop words
+result = es.indices.analyze(
+    body={
+        "tokenizer": "standard",
+        "filter": ["lowercase", "stop"],
+        "text": text
+    }
+)
+```
+
+## Exemple Complet de Configuration d'Index
+
+```{python}
+#| echo: true
+#| eval: false
+
+complete_index_config = {
+    "settings": {
+        "number_of_shards": 3,
+        "number_of_replicas": 2,
+        "refresh_interval": "1s",
+        "analysis": {
+            "analyzer": {
+                "content_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", "french_stop", "french_stemmer"]
+                }
+            },
+            "filter": {
+                "french_stop": {
+                    "type": "stop",
+                    "stopwords": "_french_"
+                },
+                "french_stemmer": {
+                    "type": "stemmer",
+                    "language": "french"
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "title": {
+                "type": "text",
+                "analyzer": "content_analyzer",
+                "fields": {
+                    "keyword": {"type": "keyword"}
+                }
+            },
+            "author": {
+                "type": "keyword"
+            },
+            "content": {
+                "type": "text",
+                "analyzer": "content_analyzer"
+            },
+            "published_date": {
+                "type": "date",
+                "format": "yyyy-MM-dd"
+            },
+            "tags": {
+                "type": "keyword"
+            },
+            "views": {
+                "type": "integer"
+            },
+            "rating": {
+                "type": "float"
+            },
+            "metadata": {
+                "properties": {
+                    "source": {"type": "keyword"},
+                    "language": {"type": "keyword"}
+                }
+            }
+        }
+    }
+}
+
+# Créer l'index avec la configuration complète
+es.indices.create(index="blog_posts_v2", body=complete_index_config)
+
+# Vérifier le mapping
+mapping = es.indices.get_mapping(index="blog_posts_v2")
+print(mapping)
+```
+
+## Bonnes Pratiques
+
+### Bonnes Pratiques de Mapping
+
+:::{.callout-tip}
+## Conseils de Mapping
+1. **Définir les mappings explicitement** - Ne pas compter sur le mapping dynamique
+2. **Utiliser les types appropriés** - `keyword` pour correspondance exacte, `text` pour recherche
+3. **Multi-champs pour la flexibilité** - Stocker les versions `text` et `keyword`
+4. **Désactiver les champs non nécessaires** - Économiser le stockage et améliorer les performances
+5. **Tester les analyseurs** - Utiliser l'API analyze avant la production
+:::
+
+### Bonnes Pratiques des Paramètres d'Index
+
+```{python}
+#| echo: true
+#| eval: false
+
+optimal_settings = {
+    "settings": {
+        # Configuration des shards
+        "number_of_shards": 3,  # Basé sur la taille des données
+        "number_of_replicas": 1,  # Équilibre disponibilité vs ressources
+
+        # Réglage des performances
+        "refresh_interval": "30s",  # Par défaut 1s, augmenter pour l'indexation en masse
+        "max_result_window": 10000,  # Profondeur maximale de pagination
+
+        # Analyse
+        "analysis": {
+            # Définir les analyseurs personnalisés ici
+        }
+    }
+}
+```
+
+### Erreurs Courantes à Éviter
+
+1. **Mauvais type de champ**: Utiliser `text` quand vous avez besoin de `keyword`
+2. **Trop de shards**: Crée de l'overhead
+3. **Ne pas tester les analyseurs**: Tokenisation inattendue
+4. **Mapping dynamique en production**: Conflits de types
+5. **Oublier les multi-champs**: Impossible de trier/agréger sur `text`
+
+## Réindexation
+
+Impossible de changer le mapping des champs existants? Réindexez!
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Créer un nouvel index avec le mapping correct
+es.indices.create(index="blog_posts_v3", body=new_mapping)
+
+# Réindexer de l'ancien vers le nouveau
+es.reindex(
+    body={
+        "source": {"index": "blog_posts_v2"},
+        "dest": {"index": "blog_posts_v3"}
+    }
+)
+
+# Créer un alias vers le nouvel index
+es.indices.put_alias(index="blog_posts_v3", name="blog_posts")
+
+# Supprimer l'ancien index (après vérification)
+es.indices.delete(index="blog_posts_v2")
+```
+
+## Résumé
+
+Concepts clés de configuration d'index:
+
+1. **Mappings**: Définir comment les données sont stockées et indexées
+2. **Types de Champs**: `text` vs `keyword` est crucial
+3. **Analyse de Texte**: Transforme le texte pour la recherche
+4. **Analyseurs Personnalisés**: Construire des expériences de recherche sur mesure
+5. **Multi-champs**: Stocker les données de plusieurs façons
+6. **Bonnes Pratiques**: Mappings explicites, types appropriés, tests
+
+Une configuration d'index appropriée garantit:
+- Résultats de recherche pertinents
+- Bonnes performances
+- Stockage efficace
+- Agrégations correctes
+
+:::{.callout-tip}
+## Prochaines Étapes
+Maintenant que vous comprenez la configuration d'index, explorons le puissant Query DSL pour rechercher et analyser les données!
+:::
+
+---
+
+## Télécharger le Notebook
+
+:::{.callout-note}
+## Jupyter Notebook
+Téléchargez cette section sous forme de notebook Jupyter interactif pour exécuter les exemples sur votre propre machine.
+
+[Télécharger index-configuration.ipynb](index-configuration.ipynb){.btn .btn-primary download="index-configuration.ipynb"}
+:::

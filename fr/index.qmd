@@ -4,11 +4,12 @@ title: "Bienvenue à la Formation Elasticsearch"
 
 ## À propos de cette formation
 
-Bienvenue au cours complet de formation Elasticsearch ! Ce guide interactif vous emmènera des bases aux concepts avancés, vous aidant à comprendre comment exploiter Elasticsearch pour de puissantes capacités de recherche et d'analyse.
+Ce guide interactif vous emmènera des bases aux concepts avancés, vous aidant à comprendre le fonctionnement et l'utilisation d'ElasticSearch.
+
 
 ## Qu'est-ce qu'Elasticsearch ?
 
-Elasticsearch est un moteur de recherche et d'analyse distribué et RESTful capable de répondre à un nombre croissant de cas d'usage. En tant que cœur de l'Elastic Stack, il centralise le stockage de vos données pour des recherches ultra-rapides, une pertinence affinée et des analyses puissantes qui s'adaptent facilement.
+Elasticsearch est un moteur de recherche et d'analyse distribué capable de répondre à un nombre croissant de cas d'usage. Il centralise le stockage de vos données pour des recherches ultra-rapides, une pertinence affinée et des analyses puissantes qui s'adaptent facilement.
 
 ## Fonctionnalités clés
 

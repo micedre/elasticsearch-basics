@@ -12,20 +12,20 @@ Avant d'utiliser ces notebooks, assurez-vous d'avoir :
 
 1. Python 3.13+ installé
 2. Les dépendances du projet installées via `uv sync`
-3. Une instance Elasticsearch en cours d'exécution (voir [Démarrage](getting-started.qmd))
+3. Une instance Elasticsearch en cours d'exécution (voir [Premiers Pas](getting-started.qmd))
 
 ### Notebooks Disponibles
 
 Tous les notebooks incluent :
-- Des explications complètes et du texte markdown
+- Des explications complètes et du texte en markdown
 - Des exemples de code Python exécutables
-- Des requêtes et opérations prêtes à l'emploi
+- Des requêtes et opérations prêtes à exécuter
 
 ---
 
-### 1. Démarrage
+### 1. Premiers Pas
 
-Apprenez à installer Elasticsearch, vous connecter avec le client Python et vérifier votre configuration.
+Apprenez à installer Elasticsearch, à vous connecter en utilisant le client Python et à vérifier votre configuration.
 
 **Sujets couverts :**
 - Options d'installation (Docker, Cloud, Local)
@@ -37,50 +37,74 @@ Apprenez à installer Elasticsearch, vous connecter avec le client Python et vé
 
 ---
 
-### 2. Indexation & Documents
+### 2. Concepts et Architecture d'Elasticsearch
 
-Maîtrisez les opérations CRUD, l'indexation en masse et la gestion des index.
+Comprenez comment Elasticsearch fonctionne en interne avec l'architecture distribuée et la scalabilité.
 
 **Sujets couverts :**
-- Création d'index avec paramètres personnalisés
-- Indexation de documents simples et multiples
-- Récupération, mise à jour et suppression de documents
-- Alias d'index et réindexation
-- Meilleures pratiques pour les opérations en masse
+- Documents, indices et shards
+- Architecture de cluster et types de nœuds
+- Recherche distribuée et routage
+- L'index inversé
+- Réplication et haute disponibilité
+- Meilleures pratiques de scalabilité
 
-[Télécharger indexing.ipynb](indexing.ipynb){.btn .btn-primary download="indexing.ipynb"}
+[Télécharger concepts-architecture.ipynb](concepts-architecture.ipynb){.btn .btn-primary download="concepts-architecture.ipynb"}
 
 ---
 
-### 3. Recherche & Requêtes
+### 3. Configuration des Index
 
-Explorez le puissant Query DSL d'Elasticsearch pour rechercher et filtrer les données.
+Maîtrisez les mappings, les types de champs et l'analyse de texte pour optimiser votre expérience de recherche.
 
 **Sujets couverts :**
-- Recherche full-text avec requêtes match
-- Requêtes term et range
-- Requêtes booléennes et filtres
+- Mappings dynamiques vs explicites
+- Types de champs (text, keyword, numeric, date)
+- Mappings multi-champs
+- Pipeline d'analyse de texte
+- Analyseurs intégrés et personnalisés
+- Tokenizers et filtres de tokens
+- Stratégies de réindexation
+
+[Télécharger index-configuration.ipynb](index-configuration.ipynb){.btn .btn-primary download="index-configuration.ipynb"}
+
+---
+
+### 4. Langages de Requête
+
+Explorez le Query DSL d'Elasticsearch et les agrégations pour une recherche et des analyses puissantes.
+
+**Sujets couverts :**
+- Structure et bases du Query DSL
+- Recherche plein texte (match, multi-match, phrase)
+- Requêtes au niveau des termes (term, range, exists)
+- Requêtes booléennes avec must/should/filter
 - Tri et pagination
-- Mise en évidence et filtrage de source
-- Techniques de requête avancées
+- Agrégations de métrique et de bucket
+- Histogrammes de dates et agrégations imbriquées
+- Introduction à ES|QL
+- Conseils de performance
 
-[Télécharger search.ipynb](search.ipynb){.btn .btn-primary download="search.ipynb"}
+[Télécharger query-languages.ipynb](query-languages.ipynb){.btn .btn-primary download="query-languages.ipynb"}
 
 ---
 
-### 4. Agrégations
+### 5. Tableaux de Bord Kibana
 
-Apprenez l'analyse de données et les agrégations pour des insights puissants.
+Apprenez à visualiser et explorer vos données avec l'interface puissante de Kibana.
 
 **Sujets couverts :**
-- Agrégations métriques (avg, sum, stats)
-- Agrégations de compartiments (terms, ranges, histograms)
-- Histogrammes de dates pour l'analyse de séries temporelles
-- Agrégations imbriquées
-- Agrégations pipeline
-- Exemples d'analyse pratiques
+- Configuration et installation de Kibana
+- Exploration de données avec Discover
+- Kibana Query Language (KQL)
+- Création de visualisations (ligne, barre, camembert, métrique, tableau)
+- Création de tableaux de bord interactifs
+- Filtres et contrôles de tableau de bord
+- Flux de travail Python + Kibana
+- Lens et fonctionnalités avancées
+- Exportation et partage
 
-[Télécharger aggregations.ipynb](aggregations.ipynb){.btn .btn-primary download="aggregations.ipynb"}
+[Télécharger kibana-dashboards.ipynb](kibana-dashboards.ipynb){.btn .btn-primary download="kibana-dashboards.ipynb"}
 
 ---
 
@@ -88,10 +112,10 @@ Apprenez l'analyse de données et les agrégations pour des insights puissants.
 
 :::{.callout-tip}
 ## Téléchargement Groupé
-Vous pouvez télécharger tous les notebooks en une seule fois en clonant le dépôt ou en utilisant le répertoire `_site/` rendu après avoir exécuté `quarto render`.
+Vous pouvez télécharger tous les notebooks en une seule fois en clonant le dépôt ou en utilisant le répertoire rendu `_site/` après avoir exécuté `quarto render`.
 
 ```bash
-# Après le rendu, les notebooks sont dans le répertoire _site
+# After rendering, notebooks are in the _site directory
 quarto render
 ls _site/*.ipynb
 ```
@@ -104,9 +128,9 @@ ls _site/*.ipynb
 ### 1. Activer l'Environnement Virtuel
 
 ```bash
-# Depuis le répertoire du projet
+# From the project directory
 source .venv/bin/activate  # Unix/macOS
-# ou
+# or
 .venv\Scripts\activate     # Windows
 ```
 
@@ -122,15 +146,15 @@ Cela ouvrira Jupyter dans votre navigateur.
 
 Ouvrez le fichier `.ipynb` téléchargé dans Jupyter.
 
-### 4. S'assurer qu'Elasticsearch est en Cours d'Exécution
+### 4. Assurez-vous qu'Elasticsearch est en Cours d'Exécution
 
 Avant d'exécuter les cellules, assurez-vous que votre instance Elasticsearch est en cours d'exécution :
 
 ```bash
-# Vérifier si Elasticsearch répond
+# Check if Elasticsearch is responding
 curl http://localhost:9200
 
-# Ou démarrer avec Docker
+# Or start with Docker
 docker run -d --name elasticsearch -p 9200:9200 \
   -e "discovery.type=single-node" \
   -e "xpack.security.enabled=false" \
@@ -140,9 +164,9 @@ docker run -d --name elasticsearch -p 9200:9200 \
 ### 5. Exécuter les Cellules
 
 Exécutez les cellules dans l'ordre en utilisant :
-- `Shift + Entrée` pour exécuter une cellule et passer à la suivante
-- `Ctrl + Entrée` pour exécuter une cellule et rester dessus
-- `Cellule > Tout Exécuter` pour exécuter toutes les cellules
+- `Shift + Enter` pour exécuter une cellule et passer à la suivante
+- `Ctrl + Enter` pour exécuter une cellule et rester dessus
+- `Cell > Run All` pour exécuter toutes les cellules
 
 ---
 
@@ -158,26 +182,26 @@ Tous les exemples utilisent `eval: false` par défaut, ce qui signifie qu'ils ne
 ### Exemple : Personnaliser la Connexion
 
 ```python
-# Connexion par défaut
+# Default connection
 es = Elasticsearch(['http://localhost:9200'])
 
-# Connexion personnalisée (exemple Elastic Cloud)
+# Custom connection (Elastic Cloud example)
 es = Elasticsearch(
-    cloud_id='votre-deployment-id',
-    basic_auth=('nom_utilisateur', 'mot_de_passe')
+    cloud_id='your-deployment-id',
+    basic_auth=('username', 'password')
 )
 
-# Connexion personnalisée (avec TLS)
+# Custom connection (with TLS)
 es = Elasticsearch(
-    ['https://votre-hote-elasticsearch:9200'],
-    basic_auth=('nom_utilisateur', 'mot_de_passe'),
-    ca_certs='/chemin/vers/ca.crt'
+    ['https://your-elasticsearch-host:9200'],
+    basic_auth=('username', 'password'),
+    ca_certs='/path/to/ca.crt'
 )
 ```
 
 ---
 
-## Conseils d'Apprentissage
+## Conseils pour Apprendre
 
 1. **Exécutez les exemples dans l'ordre** - Les exemples ultérieurs s'appuient sur les précédents
 2. **Expérimentez librement** - Modifiez les requêtes et voyez ce qui se passe
@@ -187,19 +211,19 @@ es = Elasticsearch(
 
 :::{.callout-warning}
 ## Sécurité des Données
-Les notebooks démontrent des opérations de suppression. Utilisez toujours des données et des index de test lors de l'apprentissage. N'exécutez jamais ces exemples sur des données de production !
+Les notebooks démontrent des opérations de suppression. Utilisez toujours des données de test et des index lors de l'apprentissage. N'exécutez jamais ces exemples sur des données de production !
 :::
 
 ---
 
 ## Dépannage
 
-### Les Notebooks ne S'ouvrent Pas
+### Les Notebooks ne s'Ouvrent pas
 
 Assurez-vous que Jupyter est installé :
 
 ```bash
-uv sync  # Installe toutes les dépendances y compris Jupyter
+uv sync  # Installs all dependencies including Jupyter
 ```
 
 ### Erreurs de Connexion
@@ -208,7 +232,7 @@ Vérifiez qu'Elasticsearch est en cours d'exécution et accessible :
 
 ```bash
 curl http://localhost:9200
-# Devrait retourner du JSON avec les informations du cluster
+# Should return JSON with cluster information
 ```
 
 ### Erreurs d'Importation
@@ -222,7 +246,7 @@ uv sync
 
 ---
 
-## Ressources Additionnelles
+## Ressources Supplémentaires
 
 - [Documentation du Client Python Elasticsearch](https://elasticsearch-py.readthedocs.io/)
 - [Référence Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)
@@ -231,6 +255,6 @@ uv sync
 ---
 
 :::{.callout-tip}
-## Commentaires & Questions
+## Retours et Questions
 Si vous trouvez des problèmes avec les notebooks ou avez des suggestions, veuillez [ouvrir une issue](https://github.com) sur le dépôt du projet.
 :::

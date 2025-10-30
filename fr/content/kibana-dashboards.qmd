@@ -1,0 +1,587 @@
+---
+title: "Tableaux de Bord avec Kibana"
+format:
+    html: default
+    ipynb: default
+---
+
+## Introduction
+
+Kibana est l'outil officiel de visualisation et d'exploration pour Elasticsearch. Il fournit une interface puissante pour découvrir les données, créer des visualisations et construire des tableaux de bord.
+
+## Configuration de Kibana
+
+### Installation de Kibana
+
+Kibana doit correspondre à votre version d'Elasticsearch :
+
+```bash
+# Download Kibana (match your Elasticsearch version)
+wget https://artifacts.elastic.co/downloads/kibana/kibana-8.11.0-linux-x86_64.tar.gz
+
+# Extract
+tar -xzf kibana-8.11.0-linux-x86_64.tar.gz
+cd kibana-8.11.0
+
+# Start Kibana
+./bin/kibana
+```
+
+### Installation avec Docker (Recommandé)
+
+```bash
+# Run Kibana with Docker
+docker run -d \
+  --name kibana \
+  --network elastic \
+  -p 5601:5601 \
+  -e "ELASTICSEARCH_HOSTS=http://elasticsearch:9200" \
+  docker.elastic.co/kibana/kibana:8.11.0
+
+# Access Kibana at http://localhost:5601
+```
+
+### Configuration de Kibana
+
+Éditez `config/kibana.yml` :
+
+```yaml
+server.port: 5601
+server.host: "0.0.0.0"
+elasticsearch.hosts: ["http://localhost:9200"]
+
+# Optional: Authentication
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "your_password"
+```
+
+### Vérification de la Connexion
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+import json
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Check if Elasticsearch is accessible
+if es.ping():
+    info = es.info()
+    print(f"✅ Connected to Elasticsearch {info['version']['number']}")
+    print(f"Cluster: {info['cluster_name']}")
+else:
+    print("❌ Cannot connect to Elasticsearch")
+```
+
+:::{.callout-note}
+## Configuration Initiale
+Lors de votre premier accès à Kibana, vous devrez peut-être :
+1. Créer un jeton d'inscription depuis Elasticsearch
+2. Vérifier la connexion
+3. Configurer les identifiants d'authentification
+:::
+
+## Préparation des Données d'Exemple
+
+Indexons quelques données pour la visualisation :
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch, helpers
+from datetime import datetime, timedelta
+import random
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Create index with proper mapping
+es.indices.create(
+    index="sales_data",
+    body={
+        "mappings": {
+            "properties": {
+                "timestamp": {"type": "date"},
+                "product": {"type": "keyword"},
+                "category": {"type": "keyword"},
+                "price": {"type": "float"},
+                "quantity": {"type": "integer"},
+                "total": {"type": "float"},
+                "region": {"type": "keyword"},
+                "customer_type": {"type": "keyword"}
+            }
+        }
+    },
+    ignore=400  # Ignore if already exists
+)
+
+# Generate sample sales data
+products = {
+    "Laptop": ("Electronics", 999.99),
+    "Mouse": ("Electronics", 29.99),
+    "Keyboard": ("Electronics", 79.99),
+    "Desk": ("Furniture", 399.99),
+    "Chair": ("Furniture", 299.99),
+    "Monitor": ("Electronics", 449.99),
+    "Notebook": ("Office", 5.99),
+    "Pen": ("Office", 1.99)
+}
+
+regions = ["North", "South", "East", "West"]
+customer_types = ["Individual", "Business"]
+
+def generate_sales_data(num_days=90):
+    """Generate sales data for the last N days"""
+    documents = []
+    start_date = datetime.now() - timedelta(days=num_days)
+
+    for day in range(num_days):
+        date = start_date + timedelta(days=day)
+        # Generate 5-20 sales per day
+        num_sales = random.randint(5, 20)
+
+        for _ in range(num_sales):
+            product, (category, price) = random.choice(list(products.items()))
+            quantity = random.randint(1, 5)
+            total = price * quantity
+
+            doc = {
+                "_index": "sales_data",
+                "_source": {
+                    "timestamp": date.isoformat(),
+                    "product": product,
+                    "category": category,
+                    "price": price,
+                    "quantity": quantity,
+                    "total": total,
+                    "region": random.choice(regions),
+                    "customer_type": random.choice(customer_types)
+                }
+            }
+            documents.append(doc)
+
+    return documents
+
+# Index the sample data
+documents = generate_sales_data(90)
+success, failed = helpers.bulk(es, documents)
+
+print(f"✅ Indexed {success} sales records")
+print(f"❌ Failed: {failed}")
+```
+
+## Discover : Exploration des Données
+
+### Accès à Discover
+
+1. Ouvrez Kibana à l'adresse `http://localhost:5601`
+2. Cliquez sur **☰ Menu** → **Discover**
+3. Créez une **Vue de données** (Motif d'index) :
+   - Motif : `sales_data`
+   - Champ temporel : `timestamp`
+
+### Langage de Requête Kibana (KQL)
+
+KQL est la syntaxe de recherche de Kibana :
+
+```
+# Simple field match
+category: "Electronics"
+
+# Multiple conditions
+category: "Electronics" AND region: "North"
+
+# Wildcards
+product: Lap*
+
+# Ranges
+price >= 100 AND price < 500
+
+# Boolean logic
+category: ("Electronics" OR "Office") AND region: "North"
+
+# NOT operator
+NOT customer_type: "Individual"
+
+# Exists
+customer_type:*
+```
+
+### Fonctionnalités de l'Interface Discover
+
+**Barre de recherche** : Requêtes KQL
+**Sélecteur temporel** : Sélectionner la plage de temps (15 dernières minutes, 7 derniers jours, etc.)
+**Panneau des champs** : Champs disponibles dans vos documents
+**Tableau de documents** : Documents correspondants
+**Histogramme** : Distribution des documents dans le temps
+
+### Sauvegarde des Recherches
+
+```python
+# Useful searches to save in Kibana:
+# 1. "High Value Sales" → total > 1000
+# 2. "Electronics Only" → category: "Electronics"
+# 3. "Business Customers" → customer_type: "Business"
+```
+
+## Création de Visualisations
+
+### Types de Visualisations
+
+| Type | Cas d'Usage | Exemple |
+|------|----------|---------|
+| **Graphique linéaire** | Tendances dans le temps | Ventes au fil du temps |
+| **Graphique à barres** | Comparer des catégories | Ventes par région |
+| **Diagramme circulaire** | Proportions | Ventes par catégorie |
+| **Tableau de données** | Vue détaillée | Produits les plus vendus |
+| **Métrique** | Valeur unique | Revenu total |
+| **Nuage de tags** | Fréquence de mots | Produits populaires |
+| **Carte thermique** | Comparaisons 2D | Région x Catégorie |
+
+### Création d'un Graphique Linéaire
+
+**Ventes au Fil du Temps** :
+
+1. Allez dans **Visualize** → **Create visualization**
+2. Choisissez **Line**
+3. Sélectionnez la vue de données : `sales_data`
+4. Configuration :
+   - **Axe X** : `timestamp` (Histogramme de dates, intervalle : Quotidien)
+   - **Axe Y** : Somme de `total`
+5. Enregistrez sous "Sales Over Time"
+
+### Création d'un Graphique à Barres
+
+**Ventes par Région** :
+
+1. **Create visualization** → **Bar (Vertical)**
+2. Configuration :
+   - **Axe X** : `region` (Termes)
+   - **Axe Y** : Somme de `total`
+   - **Diviser les séries** : `category` (pour les barres empilées)
+3. Enregistrez sous "Sales by Region"
+
+### Création d'un Diagramme Circulaire
+
+**Distribution des Ventes par Catégorie** :
+
+1. **Create visualization** → **Pie**
+2. Configuration :
+   - **Trancher par** : `category` (Termes)
+   - **Dimensionner par** : Somme de `total`
+3. Enregistrez sous "Category Distribution"
+
+### Création d'une Visualisation Métrique
+
+**Revenu Total** :
+
+1. **Create visualization** → **Metric**
+2. Configuration :
+   - **Métrique** : Somme de `total`
+   - **Format** : Devise ($)
+3. Enregistrez sous "Total Revenue"
+
+### Création d'un Tableau de Données
+
+**Produits les Plus Vendus** :
+
+1. **Create visualization** → **Data Table**
+2. Configuration :
+   - **Lignes** : `product` (Termes, top 10)
+   - **Métriques** :
+     - Somme de `total` (Revenu)
+     - Somme de `quantity` (Unités vendues)
+     - Compte unique de `_id` (Nombre de ventes)
+3. Triez par Revenu décroissant
+4. Enregistrez sous "Top Products"
+
+## Construction de Tableaux de Bord
+
+### Création d'un Tableau de Bord
+
+1. Allez dans **Dashboard** → **Create dashboard**
+2. Cliquez sur **Add from library**
+3. Ajoutez les visualisations :
+   - Sales Over Time (en haut, pleine largeur)
+   - Total Revenue (métrique, en haut à gauche)
+   - Sales by Region (graphique à barres)
+   - Category Distribution (diagramme circulaire)
+   - Top Products (tableau de données, en bas)
+
+### Conseils pour la Mise en Page des Tableaux de Bord
+
+- **Métriques en haut** : Chiffres clés visibles immédiatement
+- **Séries temporelles sur toute la largeur** : Montrer les tendances de manière proéminente
+- **Comparaisons côte à côte** : Graphiques à barres/circulaires ensemble
+- **Détails en bas** : Tableaux avec données détaillées pour le drill-down
+
+### Filtres de Tableau de Bord
+
+Ajoutez des filtres pour rendre les tableaux de bord interactifs :
+
+1. Cliquez sur **Add filter**
+2. Créez des filtres :
+   - Champ : `region`, Opérateur : `is`, Valeur : `North`
+   - Champ : `category`, Opérateur : `is one of`, Valeurs : `Electronics, Office`
+3. Les filtres s'appliquent à toutes les visualisations
+
+### Sélecteur de Plage Temporelle
+
+- Utilisez le sélecteur temporel pour changer la plage de dates
+- Plages courantes : 7 derniers jours, 30 derniers jours, 90 derniers jours
+- Plages personnalisées : Spécifiez des dates exactes
+- Plages relatives : `now-7d` à `now`
+
+### Options de Tableau de Bord
+
+```python
+# Options you can configure:
+# - Auto-refresh: Update every 30s, 1m, 5m, etc.
+# - Dark theme: Better for displays
+# - Panel options: Titles, descriptions
+# - Layout: Drag and resize panels
+```
+
+## Fonctionnalités Avancées de Kibana
+
+### Lens : Visualisations par Glisser-Déposer
+
+Lens est la manière moderne et conviviale de créer des visualisations :
+
+1. Allez dans **Visualize** → **Create visualization** → **Lens**
+2. Glissez les champs depuis le panneau de gauche
+3. Elasticsearch suggère automatiquement les types de graphiques
+4. Très intuitif pour les débutants !
+
+### Contrôles
+
+Ajoutez des filtres interactifs aux tableaux de bord :
+
+1. Éditez le tableau de bord
+2. Cliquez sur **Controls** → **Add control**
+3. Choisissez le type de contrôle :
+   - **Liste d'options** : Menu déroulant pour les données catégorielles
+   - **Curseur de plage** : Pour les plages numériques
+4. Champ : `region` ou `category`
+
+### Drill-Downs
+
+Créez des éléments cliquables qui naviguent vers d'autres tableaux de bord :
+
+1. Créez un tableau de bord pour les détails régionaux
+2. Dans le tableau de bord principal, éditez le panneau
+3. **Paramètres du panneau** → **Create drill-down**
+4. Liez au tableau de bord régional, transmettez le filtre de région
+
+## Flux de Travail Python + Kibana
+
+### Indexation des Données pour Kibana
+
+```{python}
+#| echo: true
+#| eval: false
+
+def prepare_data_for_kibana(dataframe, index_name):
+    """
+    Prepare pandas DataFrame for Kibana visualization
+    """
+    from elasticsearch import helpers
+
+    # Ensure proper data types
+    actions = []
+    for idx, row in dataframe.iterrows():
+        doc = row.to_dict()
+
+        # Convert dates to ISO format
+        if 'timestamp' in doc:
+            doc['timestamp'] = doc['timestamp'].isoformat()
+
+        actions.append({
+            "_index": index_name,
+            "_source": doc
+        })
+
+    # Bulk index
+    success, failed = helpers.bulk(es, actions)
+    print(f"Indexed {success} documents to {index_name}")
+
+    return success, failed
+
+# Example with pandas
+import pandas as pd
+
+# Your analysis in Python
+df = pd.DataFrame({
+    'timestamp': pd.date_range('2024-01-01', periods=100, freq='D'),
+    'metric': [random.random() * 100 for _ in range(100)],
+    'category': [random.choice(['A', 'B', 'C']) for _ in range(100)]
+})
+
+# Index for Kibana
+prepare_data_for_kibana(df, 'python_analysis')
+```
+
+### Requêtes depuis Python, Visualisation dans Kibana
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Perform complex analysis in Python
+aggregation = {
+    "aggs": {
+        "by_region": {
+            "terms": {"field": "region"},
+            "aggs": {
+                "avg_total": {"avg": {"field": "total"}},
+                "total_sales": {"sum": {"field": "total"}}
+            }
+        }
+    },
+    "size": 0
+}
+
+result = es.search(index="sales_data", body=aggregation)
+
+# Extract results
+regions_data = []
+for bucket in result['aggregations']['by_region']['buckets']:
+    regions_data.append({
+        'region': bucket['key'],
+        'avg_total': bucket['avg_total']['value'],
+        'total_sales': bucket['total_sales']['value'],
+        'count': bucket['doc_count']
+    })
+
+df_regions = pd.DataFrame(regions_data)
+print(df_regions)
+
+# Now visualize in Kibana!
+```
+
+## Bonnes Pratiques pour les Tableaux de Bord
+
+:::{.callout-tip}
+## Conseils de Conception de Tableaux de Bord
+
+1. **Restez simple** : 5 à 7 visualisations maximum par tableau de bord
+2. **Racontez une histoire** : Organisez logiquement (vue d'ensemble → détails)
+3. **Utilisez des couleurs cohérentes** : Même métrique = même couleur
+4. **Ajoutez du contexte** : Titres et descriptions
+5. **Testez les filtres** : Assurez-vous qu'ils fonctionnent sur tous les panneaux
+6. **Considérez le public** : Les dirigeants ont besoin de vues d'ensemble, les analystes de détails
+7. **Performance** : Trop de panneaux peuvent être lents
+:::
+
+### Exemples de Tableaux de Bord
+
+**Tableau de Bord Exécutif** :
+- Revenu total (métrique)
+- Tendance des ventes (graphique linéaire)
+- Top 5 des régions (graphique à barres)
+- Répartition par catégorie (diagramme circulaire)
+
+**Tableau de Bord Opérationnel** :
+- Commandes par heure (carte thermique)
+- État d'exécution (graphique en anneau)
+- Performance régionale (carte)
+- Commandes en temps réel (tableau de données)
+
+**Tableau de Bord de l'Équipe de Vente** :
+- Performance individuelle des représentants commerciaux
+- Pipeline par étape
+- Taux de conversion
+- Transactions conclues ce mois-ci
+
+## Export et Partage
+
+### Export des Visualisations
+
+- **PNG** : Cliquez sur **Share** → **PNG**
+- **CSV** : Pour les tableaux de données, **Generate CSV**
+- **PDF** : Tableau de bord → **Share** → **PDF Reports**
+
+### Partage des Tableaux de Bord
+
+1. **Lien de partage** : Obtenez l'URL du tableau de bord
+2. **Intégration** : Code iframe pour les sites externes
+3. **Rapports PDF** : Planifiez des rapports automatisés
+4. **Espaces** : Organisez les tableaux de bord par équipe/projet
+
+## Outils de Développement Kibana
+
+### Console
+
+Accédez directement à l'API REST d'Elasticsearch :
+
+```json
+GET sales_data/_search
+{
+  "query": {
+    "range": {
+      "total": {"gte": 100}
+    }
+  }
+}
+```
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Equivalent in Python
+es.search(
+    index="sales_data",
+    body={"query": {"range": {"total": {"gte": 100}}}}
+)
+```
+
+### Gestion des Index
+
+- Voir les index
+- Vérifier les mappages
+- Surveiller la santé des index
+- Supprimer les anciens index
+
+## Résumé
+
+Concepts clés de Kibana :
+
+1. **Discover** : Explorer et rechercher des données avec KQL
+2. **Visualisations** : Graphiques, diagrammes, métriques, tableaux
+3. **Tableaux de bord** : Combiner des visualisations pour obtenir des insights
+4. **Lens** : Créateur de visualisations moderne par glisser-déposer
+5. **Contrôles** : Filtres interactifs pour les tableaux de bord
+6. **Intégration Python** : Indexer des données, visualiser dans Kibana
+7. **Partage** : Exporter, intégrer, planifier des rapports
+
+Kibana permet :
+- L'exploration visuelle des données
+- La surveillance en temps réel
+- L'informatique décisionnelle
+- Les tableaux de bord opérationnels
+- La collaboration et le partage
+
+:::{.callout-tip}
+## Exercice Pratique
+Créez un tableau de bord complet en utilisant les données de ventes :
+1. Indexez les données d'exemple à partir du code Python ci-dessus
+2. Créez une vue de données dans Kibana
+3. Construisez 5 visualisations différentes
+4. Combinez-les en un seul tableau de bord
+5. Ajoutez des filtres pour la région et la catégorie
+6. Partagez avec votre équipe !
+:::
+
+---
+
+## Télécharger le Notebook
+
+:::{.callout-note}
+## Jupyter Notebook
+Téléchargez cette section sous forme de notebook Jupyter interactif pour exécuter les exemples sur votre propre machine.
+
+[Télécharger kibana-dashboards.ipynb](kibana-dashboards.ipynb){.btn .btn-primary download="kibana-dashboards.ipynb"}
+:::

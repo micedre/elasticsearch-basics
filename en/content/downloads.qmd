@@ -37,50 +37,74 @@ Learn how to install Elasticsearch, connect using the Python client, and verify 
 
 ---
 
-### 2. Indexing & Documents
+### 2. Elasticsearch Concepts & Architecture
 
-Master CRUD operations, bulk indexing, and index management.
+Understand how Elasticsearch works under the hood with distributed architecture and scalability.
 
 **Topics covered:**
-- Creating indices with custom settings
-- Indexing single and multiple documents
-- Retrieving, updating, and deleting documents
-- Index aliases and reindexing
-- Best practices for bulk operations
+- Documents, indices, and shards
+- Cluster architecture and node types
+- Distributed search and routing
+- The inverted index
+- Replication and high availability
+- Scalability best practices
 
-[Download indexing.ipynb](indexing.ipynb){.btn .btn-primary download="indexing.ipynb"}
+[Download concepts-architecture.ipynb](concepts-architecture.ipynb){.btn .btn-primary download="concepts-architecture.ipynb"}
 
 ---
 
-### 3. Search & Queries
+### 3. Index Configuration
 
-Explore Elasticsearch's powerful Query DSL for searching and filtering data.
+Master mappings, field types, and text analysis to optimize your search experience.
 
 **Topics covered:**
-- Full-text search with match queries
-- Term and range queries
-- Boolean queries and filters
+- Dynamic vs explicit mappings
+- Field types (text, keyword, numeric, date)
+- Multi-field mappings
+- Text analysis pipeline
+- Built-in and custom analyzers
+- Tokenizers and token filters
+- Reindexing strategies
+
+[Download index-configuration.ipynb](index-configuration.ipynb){.btn .btn-primary download="index-configuration.ipynb"}
+
+---
+
+### 4. Query Languages
+
+Explore Elasticsearch's Query DSL and aggregations for powerful search and analytics.
+
+**Topics covered:**
+- Query DSL structure and basics
+- Full-text search (match, multi-match, phrase)
+- Term-level queries (term, range, exists)
+- Boolean queries with must/should/filter
 - Sorting and pagination
-- Highlighting and source filtering
-- Advanced query techniques
+- Metric and bucket aggregations
+- Date histograms and nested aggregations
+- Introduction to ES|QL
+- Performance tips
 
-[Download search.ipynb](search.ipynb){.btn .btn-primary download="search.ipynb"}
+[Download query-languages.ipynb](query-languages.ipynb){.btn .btn-primary download="query-languages.ipynb"}
 
 ---
 
-### 4. Aggregations
+### 5. Kibana Dashboards
 
-Learn data analytics and aggregations for powerful insights.
+Learn to visualize and explore your data with Kibana's powerful interface.
 
 **Topics covered:**
-- Metric aggregations (avg, sum, stats)
-- Bucket aggregations (terms, ranges, histograms)
-- Date histograms for time-series analysis
-- Nested aggregations
-- Pipeline aggregations
-- Practical analytics examples
+- Kibana setup and installation
+- Data exploration with Discover
+- Kibana Query Language (KQL)
+- Creating visualizations (line, bar, pie, metric, table)
+- Building interactive dashboards
+- Dashboard filters and controls
+- Python + Kibana workflow
+- Lens and advanced features
+- Exporting and sharing
 
-[Download aggregations.ipynb](aggregations.ipynb){.btn .btn-primary download="aggregations.ipynb"}
+[Download kibana-dashboards.ipynb](kibana-dashboards.ipynb){.btn .btn-primary download="kibana-dashboards.ipynb"}
 
 ---
 

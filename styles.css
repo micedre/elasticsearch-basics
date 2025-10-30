@@ -1,5 +1,12 @@
 /* Custom styles for Elasticsearch Training website */
 
+/* Add emoji font support across all elements */
+body, .navbar, .navbar-nav, .nav-link {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif,
+               "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+}
+
 .callout-note {
   border-left-color: #0066cc;
 }

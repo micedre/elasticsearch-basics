@@ -78,93 +78,9 @@ else:
     print("Could not connect to Elasticsearch")
 ```
 
-## Basic Cluster Information
-
-Once connected, you can retrieve various information about your cluster:
-
-```{python}
-#| echo: true
-#| eval: false
-
-# Get cluster health
-health = es.cluster.health()
-print(f"Cluster status: {health['status']}")
-print(f"Number of nodes: {health['number_of_nodes']}")
-print(f"Number of data nodes: {health['number_of_data_nodes']}")
-
-# Get cluster stats
-stats = es.cluster.stats()
-print(f"Total documents: {stats['indices']['docs']['count']}")
-print(f"Total size: {stats['indices']['store']['size_in_bytes']} bytes")
-```
-
-## Understanding the Response Format
-
-Elasticsearch responses are JSON objects. Here's an example:
-
-```{python}
-#| echo: true
-#| eval: false
-
-# Get cluster health (formatted)
-health = es.cluster.health()
-print(json.dumps(health, indent=2))
-
-# Example output:
-# {
-#   "cluster_name": "docker-cluster",
-#   "status": "yellow",
-#   "timed_out": false,
-#   "number_of_nodes": 1,
-#   "number_of_data_nodes": 1,
-#   "active_primary_shards": 5,
-#   "active_shards": 5,
-#   "relocating_shards": 0,
-#   "initializing_shards": 0,
-#   "unassigned_shards": 5
-# }
-```
-
-## Testing Your Setup
-
-Here's a simple test to ensure everything is working:
-
-```{python}
-#| echo: true
-#| eval: false
-
-def test_elasticsearch_connection():
-    """Test Elasticsearch connection and basic operations"""
-    try:
-        # Connect
-        es = Elasticsearch(['http://localhost:9200'])
-
-        # Check connection
-        if not es.ping():
-            return "Failed to connect"
-
-        # Get cluster info
-        info = es.info()
-
-        # Return summary
-        return {
-            "status": "Connected",
-            "cluster_name": info['cluster_name'],
-            "version": info['version']['number'],
-            "lucene_version": info['version']['lucene_version']
-        }
-
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-# Run the test
-result = test_elasticsearch_connection()
-print(json.dumps(result, indent=2))
-```
-
 :::{.callout-tip}
 ## Next Steps
-Now that you're connected, let's explore the core concepts of Elasticsearch in the next section!
+Now that you're connected, let's explore Elasticsearch concepts and architecture to understand how it works!
 :::
 
 ## Common Connection Issues

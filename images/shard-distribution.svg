@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="550" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect x="0" y="0" width="800" height="550" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="400" y="30" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#333">Index: blog_posts - Shard Distribution</text>
+
+  <!-- Index section (top) -->
+  <rect x="50" y="60" width="700" height="200" fill="none" stroke="#999" stroke-width="2" stroke-dasharray="5,5" rx="10"/>
+  <text x="400" y="85" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#666">Index Shards</text>
+
+  <!-- Primary Shards -->
+  <rect x="80" y="110" width="120" height="60" fill="#4CAF50" stroke="#2E7D32" stroke-width="2" rx="5"/>
+  <text x="140" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Primary</text>
+  <text x="140" y="155" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Shard 0</text>
+
+  <rect x="240" y="110" width="120" height="60" fill="#4CAF50" stroke="#2E7D32" stroke-width="2" rx="5"/>
+  <text x="300" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Primary</text>
+  <text x="300" y="155" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Shard 1</text>
+
+  <rect x="400" y="110" width="120" height="60" fill="#4CAF50" stroke="#2E7D32" stroke-width="2" rx="5"/>
+  <text x="460" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Primary</text>
+  <text x="460" y="155" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Shard 2</text>
+
+  <!-- Replica Shards -->
+  <rect x="80" y="190" width="120" height="60" fill="#2196F3" stroke="#1565C0" stroke-width="2" rx="5"/>
+  <text x="140" y="215" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Replica</text>
+  <text x="140" y="235" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Shard 0</text>
+
+  <rect x="240" y="190" width="120" height="60" fill="#2196F3" stroke="#1565C0" stroke-width="2" rx="5"/>
+  <text x="300" y="215" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Replica</text>
+  <text x="300" y="235" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Shard 1</text>
+
+  <rect x="400" y="190" width="120" height="60" fill="#2196F3" stroke="#1565C0" stroke-width="2" rx="5"/>
+  <text x="460" y="215" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Replica</text>
+  <text x="460" y="235" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#fff">Shard 2</text>
+
+  <!-- Dashed replication lines -->
+  <defs>
+    <marker id="arrowhead-small" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#999" />
+    </marker>
+  </defs>
+
+  <line x1="140" y1="170" x2="140" y2="190" stroke="#999" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrowhead-small)"/>
+  <text x="150" y="182" font-family="Arial, sans-serif" font-size="10" fill="#666">replicates</text>
+
+  <line x1="300" y1="170" x2="300" y2="190" stroke="#999" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrowhead-small)"/>
+  <text x="310" y="182" font-family="Arial, sans-serif" font-size="10" fill="#666">replicates</text>
+
+  <line x1="460" y1="170" x2="460" y2="190" stroke="#999" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrowhead-small)"/>
+  <text x="470" y="182" font-family="Arial, sans-serif" font-size="10" fill="#666">replicates</text>
+
+  <!-- Cluster Nodes section (bottom) -->
+  <rect x="50" y="290" width="700" height="230" fill="none" stroke="#999" stroke-width="2" stroke-dasharray="5,5" rx="10"/>
+  <text x="400" y="315" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#666">Cluster Nodes</text>
+
+  <!-- Node 1 -->
+  <rect x="80" y="340" width="180" height="160" fill="#f5f5f5" stroke="#999" stroke-width="2" rx="5"/>
+  <text x="170" y="365" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#333">Node 1</text>
+
+  <rect x="100" y="380" width="60" height="40" fill="#4CAF50" stroke="#2E7D32" stroke-width="1.5" rx="3"/>
+  <text x="130" y="405" font-family="Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#fff">P0</text>
+
+  <rect x="180" y="380" width="60" height="40" fill="#2196F3" stroke="#1565C0" stroke-width="1.5" rx="3"/>
+  <text x="210" y="405" font-family="Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#fff">R1</text>
+
+  <text x="170" y="445" font-family="Arial, sans-serif" font-size="11" fill="#666" text-anchor="middle">Primary Shard 0</text>
+  <text x="170" y="465" font-family="Arial, sans-serif" font-size="11" fill="#666" text-anchor="middle">Replica Shard 1</text>
+
+  <!-- Node 2 -->
+  <rect x="310" y="340" width="180" height="160" fill="#f5f5f5" stroke="#999" stroke-width="2" rx="5"/>
+  <text x="400" y="365" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#333">Node 2</text>
+
+  <rect x="330" y="380" width="60" height="40" fill="#4CAF50" stroke="#2E7D32" stroke-width="1.5" rx="3"/>
+  <text x="360" y="405" font-family="Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#fff">P1</text>
+
+  <rect x="410" y="380" width="60" height="40" fill="#2196F3" stroke="#1565C0" stroke-width="1.5" rx="3"/>
+  <text x="440" y="405" font-family="Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#fff">R2</text>
+
+  <text x="400" y="445" font-family="Arial, sans-serif" font-size="11" fill="#666" text-anchor="middle">Primary Shard 1</text>
+  <text x="400" y="465" font-family="Arial, sans-serif" font-size="11" fill="#666" text-anchor="middle">Replica Shard 2</text>
+
+  <!-- Node 3 -->
+  <rect x="540" y="340" width="180" height="160" fill="#f5f5f5" stroke="#999" stroke-width="2" rx="5"/>
+  <text x="630" y="365" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#333">Node 3</text>
+
+  <rect x="560" y="380" width="60" height="40" fill="#4CAF50" stroke="#2E7D32" stroke-width="1.5" rx="3"/>
+  <text x="590" y="405" font-family="Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#fff">P2</text>
+
+  <rect x="640" y="380" width="60" height="40" fill="#2196F3" stroke="#1565C0" stroke-width="1.5" rx="3"/>
+  <text x="670" y="405" font-family="Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#fff">R0</text>
+
+  <text x="630" y="445" font-family="Arial, sans-serif" font-size="11" fill="#666" text-anchor="middle">Primary Shard 2</text>
+  <text x="630" y="465" font-family="Arial, sans-serif" font-size="11" fill="#666" text-anchor="middle">Replica Shard 0</text>
+
+  <!-- Storage arrows (from shards to nodes) -->
+  <line x1="140" y1="260" x2="130" y2="340" stroke="#4CAF50" stroke-width="2" opacity="0.5"/>
+  <text x="110" y="300" font-family="Arial, sans-serif" font-size="10" fill="#4CAF50">stored on</text>
+
+  <line x1="210" y1="260" x2="210" y2="340" stroke="#2196F3" stroke-width="2" opacity="0.5"/>
+
+  <line x1="300" y1="260" x2="360" y2="340" stroke="#4CAF50" stroke-width="2" opacity="0.5"/>
+  <text x="310" y="300" font-family="Arial, sans-serif" font-size="10" fill="#4CAF50">stored on</text>
+
+  <line x1="440" y1="260" x2="440" y2="340" stroke="#2196F3" stroke-width="2" opacity="0.5"/>
+
+  <line x1="460" y1="260" x2="590" y2="340" stroke="#4CAF50" stroke-width="2" opacity="0.5"/>
+  <text x="500" y="300" font-family="Arial, sans-serif" font-size="10" fill="#4CAF50">stored on</text>
+
+  <line x1="670" y1="260" x2="670" y2="340" stroke="#2196F3" stroke-width="2" opacity="0.5"/>
+</svg>

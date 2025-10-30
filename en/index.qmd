@@ -4,7 +4,7 @@ title: "Welcome to Elasticsearch Training"
 
 ## About This Training
 
-Welcome to the comprehensive Elasticsearch training course! This interactive guide will take you from the basics to advanced concepts, helping you understand how to leverage Elasticsearch for powerful search and analytics capabilities.
+This interactive guide will take you from the basics to advanced concepts, helping you understand how to leverage Elasticsearch for powerful search and analytics capabilities.
 
 ## What is Elasticsearch?
 

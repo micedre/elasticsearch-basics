@@ -1,0 +1,853 @@
+---
+title: "Indexing Documents"
+format:
+    html: default
+    ipynb: default
+---
+
+## Introduction
+
+Indexing is the process of adding documents to Elasticsearch. This section covers all the ways to create, read, update, and delete documents, from single operations to bulk processing and advanced techniques.
+
+## Single Document Operations
+
+### Indexing a Document
+
+There are two ways to index a document: with an auto-generated ID or with a custom ID.
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Index with auto-generated ID
+response = es.index(
+    index="blog_posts",
+    document={
+        "title": "Getting Started with Elasticsearch",
+        "author": "John Doe",
+        "content": "Elasticsearch is a powerful search engine...",
+        "published_date": "2024-01-15",
+        "tags": ["elasticsearch", "tutorial"],
+        "views": 0
+    }
+)
+
+print(f"Document indexed with ID: {response['_id']}")
+print(f"Result: {response['result']}")  # 'created'
+
+# Index with custom ID
+response = es.index(
+    index="blog_posts",
+    id="post_001",
+    document={
+        "title": "Advanced Elasticsearch Queries",
+        "author": "Jane Smith",
+        "content": "Learn advanced query techniques...",
+        "published_date": "2024-01-20",
+        "tags": ["elasticsearch", "advanced"],
+        "views": 150
+    }
+)
+
+print(f"Document indexed with ID: {response['_id']}")  # 'post_001'
+```
+
+:::{.callout-note}
+## Auto-Generated vs Custom IDs
+- **Auto-generated**: Elasticsearch creates a unique ID (base64-encoded UUID)
+- **Custom ID**: You provide the ID (useful for natural keys like email, username, etc.)
+- **Idempotency**: With custom IDs, re-indexing the same ID overwrites the document
+:::
+
+### Getting a Document
+
+Retrieve a document by its ID:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Get document by ID
+doc = es.get(index="blog_posts", id="post_001")
+
+print(f"Found: {doc['found']}")
+print(f"Source: {doc['_source']}")
+print(f"Version: {doc['_version']}")
+
+# Access document fields
+title = doc['_source']['title']
+author = doc['_source']['author']
+print(f"Title: {title}")
+print(f"Author: {author}")
+```
+
+### Checking if a Document Exists
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Check if document exists (efficient, doesn't return the document)
+exists = es.exists(index="blog_posts", id="post_001")
+
+if exists:
+    print("Document exists")
+else:
+    print("Document not found")
+```
+
+### Updating a Document
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Partial update - only update specific fields
+response = es.update(
+    index="blog_posts",
+    id="post_001",
+    doc={
+        "views": 200,
+        "last_updated": "2024-01-25"
+    }
+)
+
+print(f"Result: {response['result']}")  # 'updated'
+print(f"New version: {response['_version']}")
+```
+
+### Deleting a Document
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Delete a document
+response = es.delete(index="blog_posts", id="post_001")
+
+print(f"Result: {response['result']}")  # 'deleted'
+
+# Verify deletion
+exists = es.exists(index="blog_posts", id="post_001")
+print(f"Still exists: {exists}")  # False
+```
+
+## Bulk Operations
+
+Bulk operations allow you to index, update, or delete multiple documents in a single request, dramatically improving performance.
+
+### Using the Bulk API Directly
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Bulk API with mixed operations
+bulk_body = [
+    # Index operation
+    {"index": {"_index": "blog_posts", "_id": "post_002"}},
+    {"title": "Python Tutorial", "author": "Alice", "views": 50},
+
+    # Another index operation
+    {"index": {"_index": "blog_posts", "_id": "post_003"}},
+    {"title": "JavaScript Guide", "author": "Bob", "views": 75},
+
+    # Update operation
+    {"update": {"_index": "blog_posts", "_id": "post_001"}},
+    {"doc": {"views": 250}},
+
+    # Delete operation
+    {"delete": {"_index": "blog_posts", "_id": "post_old"}}
+]
+
+response = es.bulk(operations=bulk_body)
+
+print(f"Took: {response['took']} ms")
+print(f"Errors: {response['errors']}")
+
+# Check individual results
+for item in response['items']:
+    for action, result in item.items():
+        print(f"{action}: {result['_id']} - {result['result']}")
+```
+
+### Using helpers.bulk() (Recommended)
+
+The `helpers.bulk()` function is more convenient and handles errors better:
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import helpers
+
+# Prepare documents for bulk indexing
+documents = [
+    {
+        "_index": "blog_posts",
+        "_id": f"post_{i:03d}",
+        "_source": {
+            "title": f"Article {i}",
+            "author": f"Author {i % 5}",
+            "content": f"Content for article {i}...",
+            "published_date": "2024-01-15",
+            "tags": ["tutorial", "elasticsearch"],
+            "views": i * 10
+        }
+    }
+    for i in range(1, 101)  # Create 100 documents
+]
+
+# Bulk index
+success, failed = helpers.bulk(
+    es,
+    documents,
+    chunk_size=500,  # Number of docs per batch
+    request_timeout=30
+)
+
+print(f"Successfully indexed: {success}")
+print(f"Failed: {failed}")
+```
+
+### Bulk Indexing from DataFrame
+
+```{python}
+#| echo: true
+#| eval: false
+
+import pandas as pd
+from elasticsearch import helpers
+
+# Create sample DataFrame
+df = pd.DataFrame({
+    'title': ['Post 1', 'Post 2', 'Post 3'],
+    'author': ['Alice', 'Bob', 'Charlie'],
+    'views': [100, 200, 150],
+    'published_date': pd.date_range('2024-01-01', periods=3)
+})
+
+# Convert DataFrame to Elasticsearch bulk format
+def dataframe_to_bulk(df, index_name):
+    for idx, row in df.iterrows():
+        yield {
+            "_index": index_name,
+            "_id": idx,  # Use DataFrame index as document ID
+            "_source": row.to_dict()
+        }
+
+# Bulk index from DataFrame
+success, failed = helpers.bulk(
+    es,
+    dataframe_to_bulk(df, "blog_posts")
+)
+
+print(f"Indexed {success} documents from DataFrame")
+```
+
+### Error Handling in Bulk Operations
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import helpers
+
+documents = [
+    {"_index": "blog_posts", "_id": "1", "_source": {"title": "Valid"}},
+    {"_index": "blog_posts", "_id": "2", "_source": {"invalid_field": "error"}},
+    {"_index": "blog_posts", "_id": "3", "_source": {"title": "Also Valid"}},
+]
+
+# Bulk with error handling
+errors = []
+
+def handle_bulk_errors(success, error):
+    errors.append(error)
+
+success, failed = helpers.bulk(
+    es,
+    documents,
+    raise_on_error=False,  # Don't stop on errors
+    raise_on_exception=False,
+    chunk_size=100
+)
+
+print(f"Successful: {success}")
+print(f"Failed: {failed}")
+
+# Log errors for debugging
+if errors:
+    print("Errors encountered:")
+    for error in errors:
+        print(f"  {error}")
+```
+
+### Bulk Performance Tips
+
+:::{.callout-tip}
+## Optimizing Bulk Performance
+
+1. **Chunk Size**: 500-1000 documents per batch is usually optimal
+2. **Disable Refresh**: Set `refresh=False` to speed up indexing
+3. **Increase Thread Count**: Use `thread_count` parameter in helpers.bulk()
+4. **Monitor Errors**: Always check failed documents
+5. **Use Streaming**: Generator functions save memory for large datasets
+
+```python
+# High-performance bulk indexing
+success, failed = helpers.bulk(
+    es,
+    documents,
+    chunk_size=1000,
+    max_chunk_bytes=10485760,  # 10MB
+    thread_count=4,
+    refresh=False
+)
+
+# Refresh once after bulk indexing
+es.indices.refresh(index="blog_posts")
+```
+:::
+
+## Update Strategies
+
+### Partial Updates
+
+Update only specific fields without replacing the entire document:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Partial update with doc parameter
+response = es.update(
+    index="blog_posts",
+    id="post_001",
+    doc={
+        "views": 300,
+        "last_viewed": "2024-01-26"
+    }
+)
+
+print(f"Updated, new version: {response['_version']}")
+```
+
+### Scripted Updates
+
+Use Painless scripts for complex update logic:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Increment views counter
+response = es.update(
+    index="blog_posts",
+    id="post_001",
+    script={
+        "source": "ctx._source.views += params.increment",
+        "params": {
+            "increment": 10
+        }
+    }
+)
+
+print(f"Views incremented: {response['result']}")
+
+# Conditional update with script
+response = es.update(
+    index="blog_posts",
+    id="post_001",
+    script={
+        "source": """
+            if (ctx._source.views > params.threshold) {
+                ctx._source.popular = true;
+                ctx._source.last_promoted = params.date;
+            }
+        """,
+        "params": {
+            "threshold": 1000,
+            "date": "2024-01-26"
+        }
+    }
+)
+
+# Add to array field
+response = es.update(
+    index="blog_posts",
+    id="post_001",
+    script={
+        "source": "ctx._source.tags.add(params.tag)",
+        "params": {
+            "tag": "popular"
+        }
+    }
+)
+```
+
+### Upserts (Update or Insert)
+
+Create a document if it doesn't exist, or update if it does:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Upsert: update if exists, insert if not
+response = es.update(
+    index="blog_posts",
+    id="post_new",
+    doc={
+        "views": 10,
+        "last_viewed": "2024-01-26"
+    },
+    upsert={
+        "title": "New Post",
+        "author": "Unknown",
+        "content": "Default content",
+        "views": 0,
+        "created_at": "2024-01-26"
+    }
+)
+
+print(f"Result: {response['result']}")  # 'created' or 'updated'
+
+# Script-based upsert
+response = es.update(
+    index="blog_posts",
+    id="post_counter",
+    script={
+        "source": "ctx._source.count += 1"
+    },
+    upsert={
+        "count": 1
+    }
+)
+```
+
+### Update by Query
+
+Update multiple documents matching a query:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Update all posts by a specific author
+response = es.update_by_query(
+    index="blog_posts",
+    body={
+        "script": {
+            "source": "ctx._source.verified = true",
+            "lang": "painless"
+        },
+        "query": {
+            "term": {
+                "author": "John Doe"
+            }
+        }
+    }
+)
+
+print(f"Updated: {response['updated']} documents")
+print(f"Took: {response['took']} ms")
+
+# Increment views for popular posts
+response = es.update_by_query(
+    index="blog_posts",
+    body={
+        "script": {
+            "source": "ctx._source.views += params.bonus",
+            "params": {
+                "bonus": 50
+            }
+        },
+        "query": {
+            "range": {
+                "views": {
+                    "gte": 1000
+                }
+            }
+        }
+    }
+)
+
+print(f"Updated {response['updated']} popular posts")
+```
+
+### Delete by Query
+
+Delete documents matching a query:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Delete old posts
+response = es.delete_by_query(
+    index="blog_posts",
+    body={
+        "query": {
+            "range": {
+                "published_date": {
+                    "lt": "2023-01-01"
+                }
+            }
+        }
+    }
+)
+
+print(f"Deleted: {response['deleted']} documents")
+```
+
+## Advanced Indexing Techniques
+
+### Custom Routing
+
+Control which shard a document is stored on:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Index with custom routing (all docs for same user on same shard)
+response = es.index(
+    index="blog_posts",
+    id="post_user123_001",
+    routing="user_123",  # Route by user ID
+    document={
+        "title": "My Post",
+        "author": "user_123",
+        "content": "..."
+    }
+)
+
+# Must use same routing value when retrieving
+doc = es.get(
+    index="blog_posts",
+    id="post_user123_001",
+    routing="user_123"
+)
+
+# Search with routing (much faster)
+result = es.search(
+    index="blog_posts",
+    routing="user_123",
+    body={
+        "query": {
+            "match": {
+                "content": "elasticsearch"
+            }
+        }
+    }
+)
+```
+
+:::{.callout-note}
+## When to Use Custom Routing
+- **Co-location**: Keep related documents together (e.g., all posts by a user)
+- **Performance**: Search only specific shards instead of all
+- **Consistency**: Guarantee documents are on the same shard for joins
+:::
+
+### Optimistic Concurrency Control
+
+Prevent concurrent updates from overwriting each other:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Get document with version
+doc = es.get(index="blog_posts", id="post_001")
+current_version = doc['_version']
+seq_no = doc['_seq_no']
+primary_term = doc['_primary_term']
+
+print(f"Current version: {current_version}")
+
+# Update with version check (old method)
+try:
+    response = es.index(
+        index="blog_posts",
+        id="post_001",
+        if_seq_no=seq_no,
+        if_primary_term=primary_term,
+        document={
+            "title": "Updated Title",
+            "content": "..."
+        }
+    )
+    print("Update successful")
+except Exception as e:
+    print(f"Version conflict: {e}")
+
+# External versioning (for syncing with other systems)
+response = es.index(
+    index="blog_posts",
+    id="post_001",
+    version=5,  # Your external version number
+    version_type="external",
+    document={
+        "title": "Updated Title"
+    }
+)
+```
+
+### Refresh Strategies
+
+Control when documents become searchable:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Immediate refresh (available immediately, but slower)
+response = es.index(
+    index="blog_posts",
+    id="post_urgent",
+    refresh=True,
+    document={"title": "Breaking News"}
+)
+
+# Document is immediately searchable
+result = es.search(
+    index="blog_posts",
+    body={"query": {"match": {"title": "Breaking News"}}}
+)
+print(f"Found: {result['hits']['total']['value']}")  # 1
+
+# Wait for refresh (waits for next refresh interval)
+response = es.index(
+    index="blog_posts",
+    id="post_normal",
+    refresh="wait_for",
+    document={"title": "Regular Post"}
+)
+
+# No refresh (fastest, default)
+response = es.index(
+    index="blog_posts",
+    id="post_batch",
+    refresh=False,  # or omit parameter
+    document={"title": "Batch Post"}
+)
+
+# Manual refresh after bulk indexing
+es.indices.refresh(index="blog_posts")
+```
+
+:::{.callout-warning}
+## Refresh Trade-offs
+- **refresh=True**: Slowest, use only when necessary (e.g., testing)
+- **refresh="wait_for"**: Slower, but guarantees consistency
+- **refresh=False**: Fastest, documents appear within 1 second (default refresh interval)
+- **For bulk**: Always use `refresh=False` and call `es.indices.refresh()` once at the end
+:::
+
+### Index Aliases
+
+Use aliases for zero-downtime reindexing:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Create initial index
+es.indices.create(index="blog_posts_v1")
+
+# Create alias pointing to it
+es.indices.put_alias(index="blog_posts_v1", name="blog_posts")
+
+# Application uses the alias
+es.index(
+    index="blog_posts",  # Uses blog_posts_v1
+    document={"title": "Test"}
+)
+
+# Later: create new index with updated mapping
+es.indices.create(
+    index="blog_posts_v2",
+    body={
+        "mappings": {
+            "properties": {
+                "title": {"type": "text"},
+                "new_field": {"type": "keyword"}  # New field
+            }
+        }
+    }
+)
+
+# Reindex from v1 to v2
+es.reindex(
+    body={
+        "source": {"index": "blog_posts_v1"},
+        "dest": {"index": "blog_posts_v2"}
+    }
+)
+
+# Atomic alias swap (zero downtime!)
+es.indices.update_aliases(
+    body={
+        "actions": [
+            {"remove": {"index": "blog_posts_v1", "alias": "blog_posts"}},
+            {"add": {"index": "blog_posts_v2", "alias": "blog_posts"}}
+        ]
+    }
+)
+
+# Application continues using "blog_posts" alias, now pointing to v2
+# Can safely delete v1 after verification
+es.indices.delete(index="blog_posts_v1")
+```
+
+### Pipeline Processing
+
+Preprocess documents before indexing using ingest pipelines:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Create an ingest pipeline
+es.ingest.put_pipeline(
+    id="blog_post_pipeline",
+    body={
+        "description": "Process blog posts",
+        "processors": [
+            {
+                "set": {
+                    "field": "indexed_at",
+                    "value": "{{_ingest.timestamp}}"
+                }
+            },
+            {
+                "lowercase": {
+                    "field": "author"
+                }
+            },
+            {
+                "split": {
+                    "field": "tags",
+                    "separator": ","
+                }
+            }
+        ]
+    }
+)
+
+# Index with pipeline
+response = es.index(
+    index="blog_posts",
+    id="post_pipeline",
+    pipeline="blog_post_pipeline",
+    document={
+        "title": "Test Post",
+        "author": "JOHN DOE",  # Will be lowercased
+        "tags": "elasticsearch,python,tutorial"  # Will be split into array
+    }
+)
+
+# Verify processing
+doc = es.get(index="blog_posts", id="post_pipeline")
+print(f"Author: {doc['_source']['author']}")  # "john doe"
+print(f"Tags: {doc['_source']['tags']}")  # ["elasticsearch", "python", "tutorial"]
+print(f"Indexed at: {doc['_source']['indexed_at']}")
+```
+
+## Best Practices
+
+:::{.callout-tip}
+## Indexing Best Practices
+
+1. **Use Bulk Operations**: Always batch multiple documents (500-1000 per batch)
+2. **Handle Errors**: Check bulk response for failed documents
+3. **Disable Refresh**: Use `refresh=False` for bulk, refresh once at end
+4. **Use Generators**: Save memory when indexing large datasets
+5. **Monitor Performance**: Track indexing rate and errors
+6. **Use Aliases**: Enable zero-downtime reindexing
+7. **Version Control**: Use seq_no/primary_term for concurrent updates
+8. **Pipeline Processing**: Offload data transformation to Elasticsearch
+9. **Custom Routing**: Co-locate related documents for better performance
+10. **Async Operations**: Use async Python client for I/O-bound workloads
+
+```python
+# Production-ready bulk indexing example
+from elasticsearch import helpers
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+def index_documents(es, documents, index_name):
+    """Robust bulk indexing with error handling"""
+
+    def generate_actions():
+        for doc in documents:
+            yield {
+                "_index": index_name,
+                "_id": doc.get("id"),
+                "_source": doc
+            }
+
+    success = 0
+    failed = 0
+
+    for ok, response in helpers.streaming_bulk(
+        es,
+        generate_actions(),
+        chunk_size=500,
+        max_retries=3,
+        raise_on_error=False
+    ):
+        if ok:
+            success += 1
+        else:
+            failed += 1
+            logging.error(f"Failed to index document: {response}")
+
+        # Log progress every 1000 documents
+        if (success + failed) % 1000 == 0:
+            logging.info(f"Indexed: {success}, Failed: {failed}")
+
+    # Refresh index
+    es.indices.refresh(index=index_name)
+
+    return success, failed
+```
+:::
+
+## Summary
+
+Key indexing concepts:
+
+1. **Single Operations**: index, get, update, delete individual documents
+2. **Bulk Operations**: Use helpers.bulk() for efficient batch processing
+3. **Update Strategies**: Partial updates, scripts, upserts, update_by_query
+4. **Advanced Techniques**: Routing, versioning, refresh control, aliases, pipelines
+
+Elasticsearch provides flexible indexing options for every use case:
+- Real-time indexing with immediate refresh
+- High-throughput batch processing
+- Complex update logic with scripts
+- Zero-downtime schema migrations with aliases
+
+:::{.callout-tip}
+## Next Steps
+Now that you understand indexing, explore the Query Languages section to learn how to search and retrieve your documents!
+:::
+
+---
+
+## Download Notebook
+
+:::{.callout-note}
+## Jupyter Notebook
+Download this section as an interactive Jupyter notebook to run the examples on your own machine.
+
+[Download indexing-documents.ipynb](indexing-documents.ipynb){.btn .btn-primary download="indexing-documents.ipynb"}
+:::

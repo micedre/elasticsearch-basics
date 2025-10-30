@@ -1,0 +1,382 @@
+---
+title: "Concepts & Architecture Elasticsearch"
+format:
+    html: default
+    #ipynb: default
+---
+
+## Introduction
+
+Elasticsearch est un moteur de recherche et d'analyse distribué et RESTful construit sur Apache Lucene. Comprendre son architecture est crucial pour concevoir des solutions de recherche évolutives et efficaces.
+
+## Concepts de Base
+
+### Documents
+
+Un **document** est l'unité d'information de base dans Elasticsearch. C'est un objet JSON contenant vos données.
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Exemple de document
+document = {
+    "title": "Introduction à Elasticsearch",
+    "author": "Jean Dupont",
+    "published_date": "2024-01-15",
+    "content": "Elasticsearch est un moteur de recherche puissant...",
+    "tags": ["recherche", "elasticsearch", "tutoriel"],
+    "views": 1250
+}
+```
+
+**Caractéristiques clés:**
+- Exprimé au format JSON
+- Possède un ID unique (auto-généré ou spécifié)
+- Similaire à une ligne dans une base de données relationnelle
+- Sans schéma mais bénéficie d'un mapping explicite
+
+### Indices
+
+Un **index** est une collection de documents ayant des caractéristiques similaires. Pensez-y comme une base de données dans les systèmes traditionnels.
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Créer un index
+es.indices.create(
+    index="blog_posts",
+    body={
+        "settings": {
+            "number_of_shards": 3,
+            "number_of_replicas": 2
+        }
+    }
+)
+```
+
+**Conventions de nommage des index:**
+- Lettres minuscules uniquement
+- Pas de caractères spéciaux (sauf `-`, `_`, `+`)
+- Ne peut pas commencer par `-`, `_`, `+`
+
+### Shards
+
+Les **shards** sont les blocs de construction qui permettent à Elasticsearch de se dimensionner horizontalement.
+
+:::{.callout-note}
+## Types de Shards
+- **Shard Primaire**: Shard original contenant les documents
+- **Shard Réplique**: Copie d'un shard primaire pour la redondance et l'augmentation de la capacité de recherche
+:::
+
+## Architecture du Cluster
+
+### Qu'est-ce qu'un Cluster?
+
+Un **cluster** est une collection d'un ou plusieurs noeuds qui ensemble contiennent l'intégralité de vos données et fournissent des capacités d'indexation et de recherche fédérées.
+
+![Architecture du cluster Elasticsearch montrant les noeuds Master, Data et Coordinating](../../images/cluster-architecture.svg){width=100%}
+
+### Types de Noeuds
+
+Les noeuds Elasticsearch peuvent avoir différents rôles:
+
+| Rôle | Description | Configuration |
+|------|-------------|---------------|
+| **Master** | Gère l'état du cluster, crée/supprime les index | `node.roles: [master]` |
+| **Data** | Stocke les données et exécute les requêtes | `node.roles: [data]` |
+| **Ingest** | Prétraite les documents avant l'indexation | `node.roles: [ingest]` |
+| **Coordinating** | Route les requêtes, ne stocke pas de données | `node.roles: []` |
+| **ML** | Tâches de machine learning | `node.roles: [ml]` |
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Obtenir les informations sur les noeuds du cluster
+nodes = es.nodes.info()
+
+for node_id, node_data in nodes['nodes'].items():
+    print(f"Noeud: {node_data['name']}")
+    print(f"  Rôles: {', '.join(node_data['roles'])}")
+    print(f"  Version: {node_data['version']}")
+    print()
+```
+
+### Santé du Cluster
+
+La santé du cluster indique le statut global:
+
+- **Green**: Tous les shards primaires et répliques sont alloués
+- **Yellow**: Tous les shards primaires sont alloués, mais certaines répliques ne le sont pas
+- **Red**: Certains shards primaires ne sont pas alloués
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Vérifier la santé du cluster
+health = es.cluster.health()
+
+print(f"Statut du cluster: {health['status']}")
+print(f"Nombre de noeuds: {health['number_of_nodes']}")
+print(f"Shards actifs: {health['active_shards']}")
+print(f"Shards non assignés: {health['unassigned_shards']}")
+```
+
+## Distribution et Routage des Shards
+
+### Comment Fonctionnent les Shards
+
+![Distribution des shards sur les noeuds du cluster montrant les shards primaires et répliques](../../images/shard-distribution.svg){width=100%}
+
+### Routage des Documents
+
+Lorsque vous indexez un document, Elasticsearch détermine sur quel shard le stocker en utilisant une formule de routage:
+
+```
+shard = hash(routing_value) % number_of_primary_shards
+```
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Le routage par défaut utilise l'ID du document
+es.index(
+    index="blog_posts",
+    id="post_001",
+    document={
+        "title": "Architecture Elasticsearch",
+        "content": "Comprendre comment fonctionne Elasticsearch..."
+    }
+)
+
+# Routage personnalisé (les documents avec le même routing vont sur le même shard)
+es.index(
+    index="blog_posts",
+    id="post_002",
+    routing="user_123",  # Tous les documents pour user_123 sur le même shard
+    document={
+        "title": "Mon Article",
+        "author": "user_123",
+        "content": "..."
+    }
+)
+```
+
+## L'Index Inversé
+
+### Comment Fonctionne la Recherche en Interne
+
+Elasticsearch utilise un **index inversé** - la structure de données fondamentale qui rend la recherche en texte intégral rapide.
+
+![Structure de l'index inversé montrant comment les documents sont tokenisés et indexés pour une recherche rapide](../../images/inverted-index.svg){width=100%}
+
+### Pipeline d'Analyse de Texte
+
+Avant de créer l'index inversé, le texte passe par une analyse:
+
+1. **Filtres de Caractères**: Nettoyer le texte (ex: supprimer le HTML)
+2. **Tokenizer**: Diviser le texte en tokens
+3. **Filtres de Tokens**: Modifier les tokens (minuscules, stemming, etc.)
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Tester comment Elasticsearch analyse le texte
+text = "Les Renards Bruns Rapides ont sauté par-dessus les chiens paresseux"
+
+result = es.indices.analyze(
+    body={
+        "analyzer": "french",
+        "text": text
+    }
+)
+
+print("Tokens produits:")
+for token in result['tokens']:
+    print(f"  {token['token']}")
+
+# Sortie: ["renard", "brun", "rapid", "saut", "chien", "paress"]
+# Remarque: minuscules, stemmés, mots vides supprimés
+```
+
+## Évolutivité et Réplication
+
+### Mise à l'Échelle Horizontale
+
+Elasticsearch évolue horizontalement en ajoutant plus de noeuds au cluster.
+
+![Mise à l'échelle horizontale montrant l'expansion du cluster de 3 à 5 noeuds avec rééquilibrage automatique des shards](../../images/horizontal-scaling.svg){width=100%}
+
+**Avantages de la mise à l'échelle horizontale:**
+- Plus de capacité de stockage
+- Meilleures performances de requête (exécution parallèle)
+- Débit plus élevé
+- Tolérance aux pannes accrue
+
+### Avantages de la Réplication
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Créer un index avec réplication
+es.indices.create(
+    index="important_data",
+    body={
+        "settings": {
+            "number_of_shards": 5,
+            "number_of_replicas": 2  # 2 copies de chaque shard
+        }
+    }
+)
+
+# Peut survivre à la perte de 2 noeuds sans perte de données
+```
+
+:::{.callout-tip}
+## Stratégie de Réplication
+- **0 réplique**: Écritures rapides, pas de redondance (développement uniquement)
+- **1 réplique**: Bon équilibre (peut survivre à 1 défaillance de noeud)
+- **2+ répliques**: Haute disponibilité (peut survivre à plusieurs défaillances)
+:::
+
+### Haute Disponibilité
+
+Avec une réplication appropriée, Elasticsearch fournit:
+
+- **Pas de point de défaillance unique**: Données répliquées sur les noeuds
+- **Basculement automatique**: Réélection du master si le master échoue
+- **Réallocation des shards**: Les répliques promues en primaire si nécessaire
+- **Mises à jour progressives**: Mise à jour des noeuds sans interruption
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Surveiller l'allocation des shards
+allocation = es.cat.allocation(format='json', v=True)
+
+for node in allocation:
+    print(f"Noeud: {node['node']}")
+    print(f"  Shards: {node['shards']}")
+    print(f"  Utilisation disque: {node['disk.percent']}%")
+    print()
+```
+
+## Recherche Distribuée
+
+### Flux d'Exécution de la Recherche
+
+Lorsqu'une requête de recherche arrive:
+
+1. **Phase de Requête**:
+   - Le noeud coordinateur reçoit la requête
+   - Diffuse la requête à tous les shards pertinents
+   - Chaque shard exécute la requête localement
+   - Les shards retournent les IDs de documents + scores
+
+2. **Phase de Récupération**:
+   - Le noeud coordinateur identifie les N meilleurs documents
+   - Récupère les documents complets des shards pertinents
+   - Retourne les résultats fusionnés au client
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Rechercher à travers les shards
+result = es.search(
+    index="blog_posts",
+    body={
+        "query": {
+            "match": {
+                "content": "elasticsearch architecture"
+            }
+        },
+        "size": 10
+    }
+)
+
+print(f"Total de résultats: {result['hits']['total']['value']}")
+print(f"Temps de recherche: {result['took']} ms")
+
+# Affiche les résultats de tous les shards combinés
+for hit in result['hits']['hits']:
+    print(f"Score: {hit['_score']}, Titre: {hit['_source']['title']}")
+```
+
+## Bonnes Pratiques
+
+### Dimensionnement des Shards
+
+:::{.callout-warning}
+## Directives de Taille des Shards
+- Taille de shard cible: **10-50 GB**
+- Shards par noeud: **20-25 par GB de heap**
+- Trop de petits shards = overhead
+- Trop peu de gros shards = mauvaise distribution
+:::
+
+```{python}
+#| echo: true
+#| eval: false
+
+def calculate_optimal_shards(total_data_gb, target_shard_size_gb=30):
+    """Calculer le nombre optimal de shards"""
+    num_shards = max(1, int(total_data_gb / target_shard_size_gb))
+    return num_shards
+
+# Exemple: 150 GB de données
+shards = calculate_optimal_shards(150)
+print(f"Shards recommandés: {shards}")  # 5 shards
+```
+
+### Conception du Cluster
+
+- **Noeuds master dédiés**: Pour les gros clusters (100+ noeuds)
+- **Noeuds hot/warm séparés**: Pour les données de séries temporelles
+- **Noeuds coordinating uniquement**: Pour une charge de recherche importante
+- **Recherche inter-cluster**: Pour les requêtes fédérées
+
+## Résumé
+
+Concepts architecturaux clés:
+
+1. **Documents & Indices**: Documents JSON organisés dans des index
+2. **Shards**: Unités de mise à l'échelle horizontale (primaire + répliques)
+3. **Noeuds & Clusters**: Architecture distribuée avec rôles spécialisés
+4. **Index Inversé**: Structure de données pour recherche rapide en texte intégral
+5. **Réplication**: Haute disponibilité et tolérance aux pannes
+6. **Recherche Distribuée**: Exécution de requêtes parallèles sur les shards
+
+Comprendre ces concepts est essentiel pour:
+- Concevoir des systèmes évolutifs
+- Optimiser les performances
+- Résoudre les problèmes
+- Planifier la capacité
+
+:::{.callout-tip}
+## Prochaines Étapes
+Maintenant que vous comprenez l'architecture Elasticsearch, explorons comment configurer les index avec des mappings et des analyseurs!
+:::
+
+---
+
+## Télécharger le Notebook
+
+:::{.callout-note}
+## Jupyter Notebook
+Téléchargez cette section sous forme de notebook Jupyter interactif pour exécuter les exemples sur votre propre machine.
+
+[Télécharger concepts-architecture.ipynb](concepts-architecture.ipynb){.btn .btn-primary download="concepts-architecture.ipynb"}
+:::

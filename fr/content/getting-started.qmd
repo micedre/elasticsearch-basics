@@ -5,19 +5,19 @@ format:
     ipynb: default
 ---
 
-## Options d'Installation
+## Options d'installation
 
-Il existe plusieurs façons de démarrer avec Elasticsearch :
+Il existe plusieurs façons de configurer et d'exécuter Elasticsearch :
 
-### Option 1 : Docker (Recommandé pour le Développement)
+### Option 1 : Docker (recommandé pour le développement)
 
 La façon la plus simple de commencer est d'utiliser Docker :
 
 ```bash
-# Télécharger l'image Elasticsearch
+# Pull the Elasticsearch image
 docker pull docker.elastic.co/elasticsearch/elasticsearch:8.11.0
 
-# Lancer Elasticsearch
+# Run Elasticsearch
 docker run -d \
   --name elasticsearch \
   -p 9200:9200 \
@@ -31,22 +31,14 @@ docker run -d \
 
 Elastic propose une solution cloud hébergée sur [cloud.elastic.co](https://cloud.elastic.co) avec un essai gratuit.
 
-### Option 3 : Installation Locale
+### Option 3 : Installation locale
 
 Téléchargez et installez depuis [elastic.co/downloads/elasticsearch](https://www.elastic.co/downloads/elasticsearch).
 
 :::{.callout-note}
-## Note de Sécurité
-Pour les environnements de production, activez toujours les fonctionnalités de sécurité. Les exemples ici désactivent la sécurité pour plus de simplicité.
+## Note de sécurité
+Pour les environnements de production, activez toujours les fonctionnalités de sécurité. Les exemples ici désactivent la sécurité pour des raisons de simplicité.
 :::
-
-## Installation du Client Python
-
-Avec notre projet déjà configuré avec `uv`, nous avons le client Elasticsearch installé. Si vous devez l'ajouter à un nouveau projet :
-
-```bash
-uv add elasticsearch
-```
 
 ## Connexion à Elasticsearch
 
@@ -58,134 +50,50 @@ Vérifions notre connexion à Elasticsearch :
 from elasticsearch import Elasticsearch
 import json
 
-# Créer un client Elasticsearch
+# Create an Elasticsearch client
 es = Elasticsearch(
     ['http://localhost:9200'],
-    # Pour Elastic Cloud, utilisez :
-    # cloud_id="votre-cloud-id",
-    # api_key=("votre-api-key-id", "votre-api-key")
+    # For Elastic Cloud, use:
+    # cloud_id="your-cloud-id",
+    # api_key=("your-api-key-id", "your-api-key")
 )
 
-# Tester la connexion
+# Test the connection
 if es.ping():
-    print("Connecté à Elasticsearch !")
+    print("Connected to Elasticsearch!")
 
-    # Obtenir les informations du cluster
+    # Get cluster info
     info = es.info()
-    print(f"Nom du cluster : {info['cluster_name']}")
-    print(f"Version : {info['version']['number']}")
+    print(f"Cluster name: {info['cluster_name']}")
+    print(f"Version: {info['version']['number']}")
 else:
-    print("Impossible de se connecter à Elasticsearch")
-```
-
-## Informations de Base sur le Cluster
-
-Une fois connecté, vous pouvez récupérer diverses informations sur votre cluster :
-
-```{python}
-#| echo: true
-#| eval: false
-
-# Obtenir l'état du cluster
-health = es.cluster.health()
-print(f"Statut du cluster : {health['status']}")
-print(f"Nombre de nœuds : {health['number_of_nodes']}")
-print(f"Nombre de nœuds de données : {health['number_of_data_nodes']}")
-
-# Obtenir les statistiques du cluster
-stats = es.cluster.stats()
-print(f"Total de documents : {stats['indices']['docs']['count']}")
-print(f"Taille totale : {stats['indices']['store']['size_in_bytes']} octets")
-```
-
-## Comprendre le Format de Réponse
-
-Les réponses d'Elasticsearch sont des objets JSON. Voici un exemple :
-
-```{python}
-#| echo: true
-#| eval: false
-
-# Obtenir l'état du cluster (formaté)
-health = es.cluster.health()
-print(json.dumps(health, indent=2))
-
-# Exemple de sortie :
-# {
-#   "cluster_name": "docker-cluster",
-#   "status": "yellow",
-#   "timed_out": false,
-#   "number_of_nodes": 1,
-#   "number_of_data_nodes": 1,
-#   "active_primary_shards": 5,
-#   "active_shards": 5,
-#   "relocating_shards": 0,
-#   "initializing_shards": 0,
-#   "unassigned_shards": 5
-# }
-```
-
-## Tester Votre Configuration
-
-Voici un test simple pour s'assurer que tout fonctionne :
-
-```{python}
-#| echo: true
-#| eval: false
-
-def test_elasticsearch_connection():
-    """Tester la connexion Elasticsearch et les opérations de base"""
-    try:
-        # Se connecter
-        es = Elasticsearch(['http://localhost:9200'])
-
-        # Vérifier la connexion
-        if not es.ping():
-            return "Échec de la connexion"
-
-        # Obtenir les informations du cluster
-        info = es.info()
-
-        # Retourner le résumé
-        return {
-            "status": "Connecté",
-            "cluster_name": info['cluster_name'],
-            "version": info['version']['number'],
-            "lucene_version": info['version']['lucene_version']
-        }
-
-    except Exception as e:
-        return f"Erreur : {str(e)}"
-
-# Exécuter le test
-result = test_elasticsearch_connection()
-print(json.dumps(result, indent=2))
+    print("Could not connect to Elasticsearch")
 ```
 
 :::{.callout-tip}
-## Prochaines Étapes
-Maintenant que vous êtes connecté, explorons les concepts de base d'Elasticsearch dans la section suivante !
+## Prochaines étapes
+Maintenant que vous êtes connecté, explorons les concepts et l'architecture d'Elasticsearch pour comprendre son fonctionnement !
 :::
 
-## Problèmes de Connexion Courants
+## Problèmes de connexion courants
 
-### Problème : Connexion Refusée
+### Problème : Connexion refusée
 
 **Solution** : Assurez-vous qu'Elasticsearch est en cours d'exécution et accessible sur le port 9200.
 
 ```bash
-# Vérifier si Elasticsearch est en cours d'exécution
+# Check if Elasticsearch is running
 curl http://localhost:9200
 
-# Ou en utilisant Python
+# Or using Python
 import requests
 response = requests.get('http://localhost:9200')
 print(response.json())
 ```
 
-### Problème : Erreurs de Délai d'Attente
+### Problème : Erreurs de timeout
 
-**Solution** : Augmentez le délai d'attente dans votre configuration client :
+**Solution** : Augmentez le timeout dans la configuration de votre client :
 
 ```{python}
 #| echo: true
@@ -193,7 +101,7 @@ print(response.json())
 
 es = Elasticsearch(
     ['http://localhost:9200'],
-    request_timeout=30,  # Délai d'attente de 30 secondes
+    request_timeout=30,  # 30 seconds timeout
     max_retries=3,
     retry_on_timeout=True
 )
@@ -209,22 +117,22 @@ es = Elasticsearch(
 
 es = Elasticsearch(
     ['https://localhost:9200'],
-    verify_certs=False,  # Uniquement pour le développement !
+    verify_certs=False,  # Only for development!
     ssl_show_warn=False
 )
 ```
 
 :::{.callout-warning}
-## Avertissement de Sécurité
+## Avertissement de sécurité
 Ne désactivez jamais la vérification des certificats dans les environnements de production !
 :::
 
 ---
 
-## Télécharger le Notebook
+## Télécharger le notebook
 
 :::{.callout-note}
-## Notebook Jupyter
+## Jupyter Notebook
 Téléchargez cette section sous forme de notebook Jupyter interactif pour exécuter les exemples sur votre propre machine.
 
 [Télécharger getting-started.ipynb](getting-started.ipynb){.btn .btn-primary download="getting-started.ipynb"}

@@ -1,0 +1,382 @@
+---
+title: "Elasticsearch Concepts & Architecture"
+format:
+    html: default
+    ipynb: default
+---
+
+## Introduction
+
+Elasticsearch is a distributed, RESTful search and analytics engine built on Apache Lucene. Understanding its architecture is crucial for designing scalable and efficient search solutions.
+
+## Basic Concepts
+
+### Documents
+
+A **document** is the basic unit of information in Elasticsearch. It's a JSON object containing your data.
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Example document
+document = {
+    "title": "Introduction to Elasticsearch",
+    "author": "John Doe",
+    "published_date": "2024-01-15",
+    "content": "Elasticsearch is a powerful search engine...",
+    "tags": ["search", "elasticsearch", "tutorial"],
+    "views": 1250
+}
+```
+
+**Key characteristics:**
+- Expressed in JSON format
+- Has a unique ID (auto-generated or specified)
+- Similar to a row in a relational database
+- Schema-less but benefits from explicit mapping
+
+### Indices
+
+An **index** is a collection of documents with similar characteristics. Think of it as a database in traditional systems.
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Create an index
+es.indices.create(
+    index="blog_posts",
+    body={
+        "settings": {
+            "number_of_shards": 3,
+            "number_of_replicas": 2
+        }
+    }
+)
+```
+
+**Index naming conventions:**
+- Lowercase letters only
+- No special characters (except `-`, `_`, `+`)
+- Cannot start with `-`, `_`, `+`
+
+### Shards
+
+**Shards** are the building blocks that enable Elasticsearch to scale horizontally.
+
+:::{.callout-note}
+## Shard Types
+- **Primary Shard**: Original shard containing documents
+- **Replica Shard**: Copy of a primary shard for redundancy and increased search capacity
+:::
+
+## Cluster Architecture
+
+### What is a Cluster?
+
+A **cluster** is a collection of one or more nodes that together hold your entire data and provide federated indexing and search capabilities.
+
+![Elasticsearch cluster architecture showing Master, Data, and Coordinating nodes](../../images/cluster-architecture.svg){width=100%}
+
+### Node Types
+
+Elasticsearch nodes can have different roles:
+
+| Role | Description | Configuration |
+|------|-------------|---------------|
+| **Master** | Manages cluster state, creates/deletes indices | `node.roles: [master]` |
+| **Data** | Stores data and executes queries | `node.roles: [data]` |
+| **Ingest** | Preprocesses documents before indexing | `node.roles: [ingest]` |
+| **Coordinating** | Routes requests, doesn't store data | `node.roles: []` |
+| **ML** | Machine learning tasks | `node.roles: [ml]` |
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Get cluster node information
+nodes = es.nodes.info()
+
+for node_id, node_data in nodes['nodes'].items():
+    print(f"Node: {node_data['name']}")
+    print(f"  Roles: {', '.join(node_data['roles'])}")
+    print(f"  Version: {node_data['version']}")
+    print()
+```
+
+### Cluster Health
+
+Cluster health indicates the overall status:
+
+- **Green**: All primary and replica shards are allocated
+- **Yellow**: All primary shards are allocated, but some replicas are not
+- **Red**: Some primary shards are not allocated
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Check cluster health
+health = es.cluster.health()
+
+print(f"Cluster Status: {health['status']}")
+print(f"Number of Nodes: {health['number_of_nodes']}")
+print(f"Active Shards: {health['active_shards']}")
+print(f"Unassigned Shards: {health['unassigned_shards']}")
+```
+
+## Shard Distribution and Routing
+
+### How Shards Work
+
+![Shard distribution across cluster nodes showing primary and replica shards](../../images/shard-distribution.svg){width=100%}
+
+### Document Routing
+
+When you index a document, Elasticsearch determines which shard to store it on using a routing formula:
+
+```
+shard = hash(routing_value) % number_of_primary_shards
+```
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Default routing uses document ID
+es.index(
+    index="blog_posts",
+    id="post_001",
+    document={
+        "title": "Elasticsearch Architecture",
+        "content": "Understanding how Elasticsearch works..."
+    }
+)
+
+# Custom routing (documents with same routing go to same shard)
+es.index(
+    index="blog_posts",
+    id="post_002",
+    routing="user_123",  # All documents for user_123 on same shard
+    document={
+        "title": "My Post",
+        "author": "user_123",
+        "content": "..."
+    }
+)
+```
+
+## The Inverted Index
+
+### How Search Works Internally
+
+Elasticsearch uses an **inverted index** - the fundamental data structure that makes full-text search fast.
+
+![Inverted index structure showing how documents are tokenized and indexed for fast search](../../images/inverted-index.svg){width=100%}
+
+### Text Analysis Pipeline
+
+Before creating the inverted index, text goes through analysis:
+
+1. **Character Filters**: Clean up the text (e.g., remove HTML)
+2. **Tokenizer**: Break text into tokens
+3. **Token Filters**: Modify tokens (lowercase, stemming, etc.)
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Test how Elasticsearch analyzes text
+text = "The Quick Brown Foxes jumped over the lazy dogs"
+
+result = es.indices.analyze(
+    body={
+        "analyzer": "english",
+        "text": text
+    }
+)
+
+print("Tokens produced:")
+for token in result['tokens']:
+    print(f"  {token['token']}")
+
+# Output: ["quick", "brown", "fox", "jump", "lazi", "dog"]
+# Notice: lowercased, stemmed, stopwords removed
+```
+
+## Scalability and Replication
+
+### Horizontal Scaling
+
+Elasticsearch scales horizontally by adding more nodes to the cluster.
+
+![Horizontal scaling showing cluster expansion from 3 to 5 nodes with automatic shard rebalancing](../../images/horizontal-scaling.svg){width=100%}
+
+**Benefits of horizontal scaling:**
+- More storage capacity
+- Better query performance (parallel execution)
+- Higher throughput
+- Increased fault tolerance
+
+### Replication Benefits
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Create index with replication
+es.indices.create(
+    index="important_data",
+    body={
+        "settings": {
+            "number_of_shards": 5,
+            "number_of_replicas": 2  # 2 copies of each shard
+        }
+    }
+)
+
+# Can survive loss of 2 nodes without data loss
+```
+
+:::{.callout-tip}
+## Replication Strategy
+- **0 replicas**: Fast writes, no redundancy (development only)
+- **1 replica**: Good balance (can survive 1 node failure)
+- **2+ replicas**: High availability (can survive multiple failures)
+:::
+
+### High Availability
+
+With proper replication, Elasticsearch provides:
+
+- **No single point of failure**: Data replicated across nodes
+- **Automatic failover**: Master re-election if master fails
+- **Shard reallocation**: Replicas promoted to primary if needed
+- **Rolling upgrades**: Update nodes without downtime
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Monitor shard allocation
+allocation = es.cat.allocation(format='json', v=True)
+
+for node in allocation:
+    print(f"Node: {node['node']}")
+    print(f"  Shards: {node['shards']}")
+    print(f"  Disk Usage: {node['disk.percent']}%")
+    print()
+```
+
+## Distributed Search
+
+### Search Execution Flow
+
+When a search request comes in:
+
+1. **Query Phase**:
+   - Coordinating node receives request
+   - Broadcasts query to all relevant shards
+   - Each shard executes query locally
+   - Shards return document IDs + scores
+
+2. **Fetch Phase**:
+   - Coordinating node identifies top N documents
+   - Fetches full documents from relevant shards
+   - Returns merged results to client
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Search across shards
+result = es.search(
+    index="blog_posts",
+    body={
+        "query": {
+            "match": {
+                "content": "elasticsearch architecture"
+            }
+        },
+        "size": 10
+    }
+)
+
+print(f"Total hits: {result['hits']['total']['value']}")
+print(f"Search took: {result['took']} ms")
+
+# Shows results from all shards combined
+for hit in result['hits']['hits']:
+    print(f"Score: {hit['_score']}, Title: {hit['_source']['title']}")
+```
+
+## Best Practices
+
+### Sizing Shards
+
+:::{.callout-warning}
+## Shard Size Guidelines
+- Target shard size: **10-50 GB**
+- Shards per node: **20-25 per GB of heap**
+- Too many small shards = overhead
+- Too few large shards = poor distribution
+:::
+
+```{python}
+#| echo: true
+#| eval: false
+
+def calculate_optimal_shards(total_data_gb, target_shard_size_gb=30):
+    """Calculate optimal number of shards"""
+    num_shards = max(1, int(total_data_gb / target_shard_size_gb))
+    return num_shards
+
+# Example: 150 GB of data
+shards = calculate_optimal_shards(150)
+print(f"Recommended shards: {shards}")  # 5 shards
+```
+
+### Cluster Design
+
+- **Dedicated master nodes**: For large clusters (100+ nodes)
+- **Separate hot/warm nodes**: For time-series data
+- **Coordinating-only nodes**: For heavy search load
+- **Cross-cluster search**: For federated queries
+
+## Summary
+
+Key architectural concepts:
+
+1. **Documents & Indices**: JSON documents organized in indices
+2. **Shards**: Horizontal scaling units (primary + replicas)
+3. **Nodes & Clusters**: Distributed architecture with specialized roles
+4. **Inverted Index**: Fast full-text search data structure
+5. **Replication**: High availability and fault tolerance
+6. **Distributed Search**: Parallel query execution across shards
+
+Understanding these concepts is essential for:
+- Designing scalable systems
+- Optimizing performance
+- Troubleshooting issues
+- Planning capacity
+
+:::{.callout-tip}
+## Next Steps
+Now that you understand Elasticsearch architecture, let's explore how to configure indices with mappings and analyzers!
+:::
+
+---
+
+## Download Notebook
+
+:::{.callout-note}
+## Jupyter Notebook
+Download this section as an interactive Jupyter notebook to run the examples on your own machine.
+
+[Download concepts-architecture.ipynb](concepts-architecture.ipynb){.btn .btn-primary download="concepts-architecture.ipynb"}
+:::

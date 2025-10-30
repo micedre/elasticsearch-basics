@@ -1,0 +1,587 @@
+---
+title: "Dashboard with Kibana"
+format:
+    html: default
+    ipynb: default
+---
+
+## Introduction
+
+Kibana is the official visualization and exploration tool for Elasticsearch. It provides a powerful interface for discovering data, creating visualizations, and building dashboards.
+
+## Kibana Setup
+
+### Installing Kibana
+
+Kibana must match your Elasticsearch version:
+
+```bash
+# Download Kibana (match your Elasticsearch version)
+wget https://artifacts.elastic.co/downloads/kibana/kibana-8.11.0-linux-x86_64.tar.gz
+
+# Extract
+tar -xzf kibana-8.11.0-linux-x86_64.tar.gz
+cd kibana-8.11.0
+
+# Start Kibana
+./bin/kibana
+```
+
+### Docker Installation (Recommended)
+
+```bash
+# Run Kibana with Docker
+docker run -d \
+  --name kibana \
+  --network elastic \
+  -p 5601:5601 \
+  -e "ELASTICSEARCH_HOSTS=http://elasticsearch:9200" \
+  docker.elastic.co/kibana/kibana:8.11.0
+
+# Access Kibana at http://localhost:5601
+```
+
+### Kibana Configuration
+
+Edit `config/kibana.yml`:
+
+```yaml
+server.port: 5601
+server.host: "0.0.0.0"
+elasticsearch.hosts: ["http://localhost:9200"]
+
+# Optional: Authentication
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "your_password"
+```
+
+### Verifying Connection
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+import json
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Check if Elasticsearch is accessible
+if es.ping():
+    info = es.info()
+    print(f"✅ Connected to Elasticsearch {info['version']['number']}")
+    print(f"Cluster: {info['cluster_name']}")
+else:
+    print("❌ Cannot connect to Elasticsearch")
+```
+
+:::{.callout-note}
+## First Time Setup
+When you first access Kibana, you may need to:
+1. Create an enrollment token from Elasticsearch
+2. Verify the connection
+3. Set up authentication credentials
+:::
+
+## Preparing Sample Data
+
+Let's index some data for visualization:
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch, helpers
+from datetime import datetime, timedelta
+import random
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Create index with proper mapping
+es.indices.create(
+    index="sales_data",
+    body={
+        "mappings": {
+            "properties": {
+                "timestamp": {"type": "date"},
+                "product": {"type": "keyword"},
+                "category": {"type": "keyword"},
+                "price": {"type": "float"},
+                "quantity": {"type": "integer"},
+                "total": {"type": "float"},
+                "region": {"type": "keyword"},
+                "customer_type": {"type": "keyword"}
+            }
+        }
+    },
+    ignore=400  # Ignore if already exists
+)
+
+# Generate sample sales data
+products = {
+    "Laptop": ("Electronics", 999.99),
+    "Mouse": ("Electronics", 29.99),
+    "Keyboard": ("Electronics", 79.99),
+    "Desk": ("Furniture", 399.99),
+    "Chair": ("Furniture", 299.99),
+    "Monitor": ("Electronics", 449.99),
+    "Notebook": ("Office", 5.99),
+    "Pen": ("Office", 1.99)
+}
+
+regions = ["North", "South", "East", "West"]
+customer_types = ["Individual", "Business"]
+
+def generate_sales_data(num_days=90):
+    """Generate sales data for the last N days"""
+    documents = []
+    start_date = datetime.now() - timedelta(days=num_days)
+
+    for day in range(num_days):
+        date = start_date + timedelta(days=day)
+        # Generate 5-20 sales per day
+        num_sales = random.randint(5, 20)
+
+        for _ in range(num_sales):
+            product, (category, price) = random.choice(list(products.items()))
+            quantity = random.randint(1, 5)
+            total = price * quantity
+
+            doc = {
+                "_index": "sales_data",
+                "_source": {
+                    "timestamp": date.isoformat(),
+                    "product": product,
+                    "category": category,
+                    "price": price,
+                    "quantity": quantity,
+                    "total": total,
+                    "region": random.choice(regions),
+                    "customer_type": random.choice(customer_types)
+                }
+            }
+            documents.append(doc)
+
+    return documents
+
+# Index the sample data
+documents = generate_sales_data(90)
+success, failed = helpers.bulk(es, documents)
+
+print(f"✅ Indexed {success} sales records")
+print(f"❌ Failed: {failed}")
+```
+
+## Discover: Data Exploration
+
+### Accessing Discover
+
+1. Open Kibana at `http://localhost:5601`
+2. Click **☰ Menu** → **Discover**
+3. Create a **Data View** (Index Pattern):
+   - Pattern: `sales_data`
+   - Time field: `timestamp`
+
+### Kibana Query Language (KQL)
+
+KQL is Kibana's search syntax:
+
+```
+# Simple field match
+category: "Electronics"
+
+# Multiple conditions
+category: "Electronics" AND region: "North"
+
+# Wildcards
+product: Lap*
+
+# Ranges
+price >= 100 AND price < 500
+
+# Boolean logic
+category: ("Electronics" OR "Office") AND region: "North"
+
+# NOT operator
+NOT customer_type: "Individual"
+
+# Exists
+customer_type:*
+```
+
+### Discover Interface Features
+
+**Search Bar**: KQL queries
+**Time Picker**: Select time range (Last 15 minutes, Last 7 days, etc.)
+**Fields Panel**: Available fields from your documents
+**Document Table**: Matching documents
+**Histogram**: Document distribution over time
+
+### Saving Searches
+
+```python
+# Useful searches to save in Kibana:
+# 1. "High Value Sales" → total > 1000
+# 2. "Electronics Only" → category: "Electronics"
+# 3. "Business Customers" → customer_type: "Business"
+```
+
+## Creating Visualizations
+
+### Visualization Types
+
+| Type | Use Case | Example |
+|------|----------|---------|
+| **Line Chart** | Trends over time | Sales over time |
+| **Bar Chart** | Compare categories | Sales by region |
+| **Pie Chart** | Proportions | Sales by category |
+| **Data Table** | Detailed view | Top products |
+| **Metric** | Single value | Total revenue |
+| **Tag Cloud** | Word frequency | Popular products |
+| **Heatmap** | 2D comparisons | Region x Category |
+
+### Creating a Line Chart
+
+**Sales over Time**:
+
+1. Go to **Visualize** → **Create visualization**
+2. Choose **Line**
+3. Select data view: `sales_data`
+4. Configuration:
+   - **X-axis**: `timestamp` (Date Histogram, interval: Daily)
+   - **Y-axis**: Sum of `total`
+5. Save as "Sales Over Time"
+
+### Creating a Bar Chart
+
+**Sales by Region**:
+
+1. **Create visualization** → **Bar (Vertical)**
+2. Configuration:
+   - **X-axis**: `region` (Terms)
+   - **Y-axis**: Sum of `total`
+   - **Split series**: `category` (for stacked bars)
+3. Save as "Sales by Region"
+
+### Creating a Pie Chart
+
+**Sales Distribution by Category**:
+
+1. **Create visualization** → **Pie**
+2. Configuration:
+   - **Slice by**: `category` (Terms)
+   - **Size by**: Sum of `total`
+3. Save as "Category Distribution"
+
+### Creating a Metric Visualization
+
+**Total Revenue**:
+
+1. **Create visualization** → **Metric**
+2. Configuration:
+   - **Metric**: Sum of `total`
+   - **Format**: Currency ($)
+3. Save as "Total Revenue"
+
+### Creating a Data Table
+
+**Top Products**:
+
+1. **Create visualization** → **Data Table**
+2. Configuration:
+   - **Rows**: `product` (Terms, top 10)
+   - **Metrics**:
+     - Sum of `total` (Revenue)
+     - Sum of `quantity` (Units Sold)
+     - Unique count of `_id` (Number of Sales)
+3. Sort by Revenue descending
+4. Save as "Top Products"
+
+## Building Dashboards
+
+### Creating a Dashboard
+
+1. Go to **Dashboard** → **Create dashboard**
+2. Click **Add from library**
+3. Add visualizations:
+   - Sales Over Time (top, full width)
+   - Total Revenue (metric, top left)
+   - Sales by Region (bar chart)
+   - Category Distribution (pie chart)
+   - Top Products (data table, bottom)
+
+### Dashboard Layout Tips
+
+- **Metrics at top**: Key numbers visible immediately
+- **Time series across width**: Show trends prominently
+- **Comparisons side-by-side**: Bar/pie charts together
+- **Details at bottom**: Tables with drill-down data
+
+### Dashboard Filters
+
+Add filters to make dashboards interactive:
+
+1. Click **Add filter**
+2. Create filters:
+   - Field: `region`, Operator: `is`, Value: `North`
+   - Field: `category`, Operator: `is one of`, Values: `Electronics, Office`
+3. Filters apply to all visualizations
+
+### Time Range Selector
+
+- Use the time picker to change date range
+- Common ranges: Last 7 days, Last 30 days, Last 90 days
+- Custom ranges: Specify exact dates
+- Relative ranges: `now-7d` to `now`
+
+### Dashboard Options
+
+```python
+# Options you can configure:
+# - Auto-refresh: Update every 30s, 1m, 5m, etc.
+# - Dark theme: Better for displays
+# - Panel options: Titles, descriptions
+# - Layout: Drag and resize panels
+```
+
+## Advanced Kibana Features
+
+### Lens: Drag-and-Drop Visualizations
+
+Lens is the modern, user-friendly way to create visualizations:
+
+1. Go to **Visualize** → **Create visualization** → **Lens**
+2. Drag fields from left panel
+3. Elasticsearch automatically suggests chart types
+4. Very intuitive for beginners!
+
+### Controls
+
+Add interactive filters to dashboards:
+
+1. Edit dashboard
+2. Click **Controls** → **Add control**
+3. Choose control type:
+   - **Options list**: Dropdown for categorical data
+   - **Range slider**: For numeric ranges
+4. Field: `region` or `category`
+
+### Drill-Downs
+
+Create clickable elements that navigate to other dashboards:
+
+1. Create a dashboard for region details
+2. In main dashboard, edit panel
+3. **Panel settings** → **Create drill-down**
+4. Link to region dashboard, pass region filter
+
+## Python + Kibana Workflow
+
+### Indexing Data for Kibana
+
+```{python}
+#| echo: true
+#| eval: false
+
+def prepare_data_for_kibana(dataframe, index_name):
+    """
+    Prepare pandas DataFrame for Kibana visualization
+    """
+    from elasticsearch import helpers
+
+    # Ensure proper data types
+    actions = []
+    for idx, row in dataframe.iterrows():
+        doc = row.to_dict()
+
+        # Convert dates to ISO format
+        if 'timestamp' in doc:
+            doc['timestamp'] = doc['timestamp'].isoformat()
+
+        actions.append({
+            "_index": index_name,
+            "_source": doc
+        })
+
+    # Bulk index
+    success, failed = helpers.bulk(es, actions)
+    print(f"Indexed {success} documents to {index_name}")
+
+    return success, failed
+
+# Example with pandas
+import pandas as pd
+
+# Your analysis in Python
+df = pd.DataFrame({
+    'timestamp': pd.date_range('2024-01-01', periods=100, freq='D'),
+    'metric': [random.random() * 100 for _ in range(100)],
+    'category': [random.choice(['A', 'B', 'C']) for _ in range(100)]
+})
+
+# Index for Kibana
+prepare_data_for_kibana(df, 'python_analysis')
+```
+
+### Querying from Python, Visualizing in Kibana
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Perform complex analysis in Python
+aggregation = {
+    "aggs": {
+        "by_region": {
+            "terms": {"field": "region"},
+            "aggs": {
+                "avg_total": {"avg": {"field": "total"}},
+                "total_sales": {"sum": {"field": "total"}}
+            }
+        }
+    },
+    "size": 0
+}
+
+result = es.search(index="sales_data", body=aggregation)
+
+# Extract results
+regions_data = []
+for bucket in result['aggregations']['by_region']['buckets']:
+    regions_data.append({
+        'region': bucket['key'],
+        'avg_total': bucket['avg_total']['value'],
+        'total_sales': bucket['total_sales']['value'],
+        'count': bucket['doc_count']
+    })
+
+df_regions = pd.DataFrame(regions_data)
+print(df_regions)
+
+# Now visualize in Kibana!
+```
+
+## Dashboard Best Practices
+
+:::{.callout-tip}
+## Dashboard Design Tips
+
+1. **Keep it simple**: 5-7 visualizations max per dashboard
+2. **Tell a story**: Arrange logically (overview → details)
+3. **Use consistent colors**: Same metric = same color
+4. **Add context**: Titles and descriptions
+5. **Test filters**: Ensure they work across all panels
+6. **Consider audience**: Executives need high-level, analysts need details
+7. **Performance**: Too many panels can be slow
+:::
+
+### Dashboard Examples
+
+**Executive Dashboard**:
+- Total Revenue (metric)
+- Sales Trend (line chart)
+- Top 5 Regions (bar chart)
+- Category Split (pie chart)
+
+**Operations Dashboard**:
+- Orders by Hour (heatmap)
+- Fulfillment Status (donut chart)
+- Regional Performance (map)
+- Real-time Orders (data table)
+
+**Sales Team Dashboard**:
+- Individual Sales Rep Performance
+- Pipeline by Stage
+- Conversion Rates
+- Deals Closed This Month
+
+## Exporting and Sharing
+
+### Exporting Visualizations
+
+- **PNG**: Click **Share** → **PNG**
+- **CSV**: For data tables, **Generate CSV**
+- **PDF**: Dashboard → **Share** → **PDF Reports**
+
+### Sharing Dashboards
+
+1. **Share link**: Get URL to dashboard
+2. **Embed**: Iframe code for external sites
+3. **PDF Reports**: Schedule automated reports
+4. **Spaces**: Organize dashboards by team/project
+
+## Kibana Dev Tools
+
+### Console
+
+Access Elasticsearch REST API directly:
+
+```json
+GET sales_data/_search
+{
+  "query": {
+    "range": {
+      "total": {"gte": 100}
+    }
+  }
+}
+```
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Equivalent in Python
+es.search(
+    index="sales_data",
+    body={"query": {"range": {"total": {"gte": 100}}}}
+)
+```
+
+### Index Management
+
+- View indices
+- Check mappings
+- Monitor index health
+- Delete old indices
+
+## Summary
+
+Key Kibana concepts:
+
+1. **Discover**: Explore and search data with KQL
+2. **Visualizations**: Charts, graphs, metrics, tables
+3. **Dashboards**: Combine visualizations for insights
+4. **Lens**: Modern, drag-and-drop visualization builder
+5. **Controls**: Interactive filters for dashboards
+6. **Python Integration**: Index data, visualize in Kibana
+7. **Sharing**: Export, embed, schedule reports
+
+Kibana enables:
+- Visual data exploration
+- Real-time monitoring
+- Business intelligence
+- Operational dashboards
+- Collaboration and sharing
+
+:::{.callout-tip}
+## Practice Exercise
+Create a complete dashboard using the sales data:
+1. Index sample data from the Python code above
+2. Create a data view in Kibana
+3. Build 5 different visualizations
+4. Combine them into one dashboard
+5. Add filters for region and category
+6. Share with your team!
+:::
+
+---
+
+## Download Notebook
+
+:::{.callout-note}
+## Jupyter Notebook
+Download this section as an interactive Jupyter notebook to run the examples on your own machine.
+
+[Download kibana-dashboards.ipynb](kibana-dashboards.ipynb){.btn .btn-primary download="kibana-dashboards.ipynb"}
+:::

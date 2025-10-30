@@ -1,0 +1,876 @@
+---
+title: "Query Languages"
+format:
+    html: default
+    ipynb: default
+---
+
+## Introduction
+
+Elasticsearch provides powerful query languages for searching and analyzing data. This section covers the Query DSL (Domain Specific Language), aggregations, and modern query approaches.
+
+## Query DSL Basics
+
+### Query Structure
+
+All search queries follow a JSON structure:
+
+```{python}
+#| echo: true
+#| eval: false
+
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(['http://localhost:9200'])
+
+# Basic query structure
+query = {
+    "query": {
+        # Query goes here
+    },
+    "size": 10,  # Number of results
+    "from": 0    # Offset for pagination
+}
+
+response = es.search(index="blog_posts", body=query)
+```
+
+### Match All Query
+
+The simplest query returns all documents:
+
+```{python}
+#| echo: true
+#| eval: false
+
+query = {
+    "query": {
+        "match_all": {}
+    }
+}
+
+response = es.search(index="blog_posts", body=query)
+
+print(f"Total hits: {response['hits']['total']['value']}")
+for hit in response['hits']['hits']:
+    print(f"ID: {hit['_id']}, Score: {hit['_score']}")
+```
+
+## Full-Text Search Queries
+
+### Match Query
+
+The most common full-text search query:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Search for documents containing "elasticsearch" or "performance"
+query = {
+    "query": {
+        "match": {
+            "content": "elasticsearch performance"
+        }
+    }
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for hit in response['hits']['hits']:
+    print(f"Score: {hit['_score']:.2f}")
+    print(f"Title: {hit['_source']['title']}")
+    print("---")
+```
+
+:::{.callout-note}
+## Match Query Behavior
+The `match` query analyzes the search text and finds documents containing **any** of the terms. Documents with more matching terms score higher.
+:::
+
+### Multi-Match Query
+
+Search across multiple fields:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Search in title and content, boost title 2x
+query = {
+    "query": {
+        "multi_match": {
+            "query": "elasticsearch tutorial",
+            "fields": ["title^2", "content"],  # ^2 means 2x importance
+            "type": "best_fields"  # Other types: most_fields, cross_fields
+        }
+    }
+}
+
+response = es.search(index="blog_posts", body=query)
+```
+
+### Match Phrase Query
+
+Match exact phrases:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Find "search engine" as an exact phrase
+query = {
+    "query": {
+        "match_phrase": {
+            "content": "search engine"
+        }
+    }
+}
+
+# Allow some words in between (slop)
+query_with_slop = {
+    "query": {
+        "match_phrase": {
+            "content": {
+                "query": "search engine",
+                "slop": 2  # Allows up to 2 words between terms
+            }
+        }
+    }
+}
+```
+
+### Fuzzy Queries
+
+Handle typos and misspellings:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Fuzzy match (tolerates spelling errors)
+query = {
+    "query": {
+        "match": {
+            "title": {
+                "query": "elasticsearh",  # Typo: missing 'c'
+                "fuzziness": "AUTO"  # Auto-adjusts based on term length
+            }
+        }
+    }
+}
+
+# Or use fuzzy query directly
+fuzzy_query = {
+    "query": {
+        "fuzzy": {
+            "title": {
+                "value": "elasticsearh",
+                "fuzziness": 2  # Allow 2 character changes
+            }
+        }
+    }
+}
+```
+
+## Term-Level Queries (Exact Matching)
+
+### Term Query
+
+Exact match on keyword fields:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Find documents with exact author name
+query = {
+    "query": {
+        "term": {
+            "author": "Jane Smith"  # Must match exactly
+        }
+    }
+}
+
+response = es.search(index="blog_posts", body=query)
+```
+
+### Terms Query
+
+Match any of multiple values:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Find documents with any of these tags
+query = {
+    "query": {
+        "terms": {
+            "tags": ["elasticsearch", "search", "tutorial"]
+        }
+    }
+}
+```
+
+### Range Query
+
+Query numeric or date ranges:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Posts with 1000-2000 views
+query = {
+    "query": {
+        "range": {
+            "views": {
+                "gte": 1000,  # Greater than or equal
+                "lte": 2000   # Less than or equal
+            }
+        }
+    }
+}
+
+# Date range with date math
+date_query = {
+    "query": {
+        "range": {
+            "published_date": {
+                "gte": "now-30d/d",  # Last 30 days
+                "lte": "now/d"       # Today
+            }
+        }
+    }
+}
+```
+
+### Exists Query
+
+Check if field exists:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Documents that have the 'tags' field
+query = {
+    "query": {
+        "exists": {
+            "field": "tags"
+        }
+    }
+}
+
+# Documents missing 'tags' field
+missing_query = {
+    "query": {
+        "bool": {
+            "must_not": {
+                "exists": {"field": "tags"}
+            }
+        }
+    }
+}
+```
+
+### Prefix and Wildcard Queries
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Prefix query
+prefix_query = {
+    "query": {
+        "prefix": {
+            "author": "Jane"  # Matches "Jane Smith", "Jane Doe"
+        }
+    }
+}
+
+# Wildcard query (* = any chars, ? = one char)
+wildcard_query = {
+    "query": {
+        "wildcard": {
+            "title": "*elasticsearch*"  # Contains elasticsearch
+        }
+    }
+}
+```
+
+## Boolean Queries
+
+Combine multiple queries with Boolean logic:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Complex boolean query
+query = {
+    "query": {
+        "bool": {
+            "must": [  # Must match (affects score)
+                {"match": {"content": "elasticsearch"}}
+            ],
+            "should": [  # Should match (boosts score)
+                {"term": {"tags": "tutorial"}},
+                {"term": {"tags": "beginner"}}
+            ],
+            "must_not": [  # Must not match (excluded)
+                {"term": {"author": "John Doe"}}
+            ],
+            "filter": [  # Must match (no score, cached)
+                {"range": {"views": {"gte": 1000}}},
+                {"term": {"status": "published"}}
+            ],
+            "minimum_should_match": 1  # At least one should clause must match
+        }
+    }
+}
+
+response = es.search(index="blog_posts", body=query)
+```
+
+### Boolean Query Clauses
+
+| Clause | Score Impact | Cached | Use Case |
+|--------|--------------|--------|----------|
+| `must` | ✅ Yes | ❌ No | Required matches that affect relevance |
+| `should` | ✅ Yes | ❌ No | Optional matches that boost score |
+| `must_not` | ❌ No | ✅ Yes | Exclusions |
+| `filter` | ❌ No | ✅ Yes | Required matches, no scoring (faster) |
+
+:::{.callout-tip}
+## Performance Tip
+Use `filter` instead of `must` when you don't need relevance scoring. It's faster and cached!
+:::
+
+## Sorting and Pagination
+
+### Sorting Results
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Sort by views descending, then by score
+query = {
+    "query": {"match": {"content": "elasticsearch"}},
+    "sort": [
+        {"views": {"order": "desc"}},
+        {"_score": {"order": "desc"}}
+    ]
+}
+
+# Sort by multiple fields
+multi_sort = {
+    "query": {"match_all": {}},
+    "sort": [
+        {"published_date": "desc"},
+        {"views": "desc"},
+        {"title.keyword": "asc"}  # Use .keyword for text fields
+    ]
+}
+```
+
+### Pagination
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Basic pagination
+query = {
+    "query": {"match_all": {}},
+    "from": 20,  # Skip first 20
+    "size": 10   # Return 10 results (results 21-30)
+}
+
+# Search after (for deep pagination)
+query_search_after = {
+    "query": {"match_all": {}},
+    "size": 10,
+    "sort": [
+        {"published_date": "desc"},
+        {"_id": "desc"}  # Tiebreaker
+    ],
+    "search_after": [1704067200000, "post_123"]  # From previous page
+}
+```
+
+## Aggregations
+
+### Metric Aggregations
+
+Calculate statistics:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Calculate statistics on views
+query = {
+    "aggs": {
+        "avg_views": {"avg": {"field": "views"}},
+        "max_views": {"max": {"field": "views"}},
+        "min_views": {"min": {"field": "views"}},
+        "total_views": {"sum": {"field": "views"}},
+        "stats_views": {"stats": {"field": "views"}}  # All stats at once
+    },
+    "size": 0  # Don't return documents, only aggregations
+}
+
+response = es.search(index="blog_posts", body=query)
+
+print(f"Average views: {response['aggregations']['avg_views']['value']:.2f}")
+print(f"Total views: {response['aggregations']['total_views']['value']}")
+```
+
+### Bucket Aggregations
+
+Group documents into buckets:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Group by author (like SQL GROUP BY)
+query = {
+    "aggs": {
+        "posts_by_author": {
+            "terms": {
+                "field": "author",
+                "size": 10  # Top 10 authors
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['posts_by_author']['buckets']:
+    print(f"Author: {bucket['key']}, Posts: {bucket['doc_count']}")
+```
+
+### Nested Aggregations
+
+Combine buckets with metrics:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Posts per author with average views
+query = {
+    "aggs": {
+        "authors": {
+            "terms": {
+                "field": "author",
+                "size": 10,
+                "order": {"avg_views": "desc"}  # Order by avg views
+            },
+            "aggs": {
+                "avg_views": {"avg": {"field": "views"}},
+                "total_views": {"sum": {"field": "views"}}
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['authors']['buckets']:
+    print(f"Author: {bucket['key']}")
+    print(f"  Posts: {bucket['doc_count']}")
+    print(f"  Avg views: {bucket['avg_views']['value']:.2f}")
+    print(f"  Total views: {bucket['total_views']['value']}")
+```
+
+### Range Aggregations
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Group posts by view ranges
+query = {
+    "aggs": {
+        "view_ranges": {
+            "range": {
+                "field": "views",
+                "ranges": [
+                    {"to": 500, "key": "low"},
+                    {"from": 500, "to": 1500, "key": "medium"},
+                    {"from": 1500, "key": "high"}
+                ]
+            }
+        }
+    },
+    "size": 0
+}
+```
+
+### Date Histogram
+
+Group by time intervals:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Posts per month
+query = {
+    "aggs": {
+        "posts_over_time": {
+            "date_histogram": {
+                "field": "published_date",
+                "calendar_interval": "month",
+                "format": "yyyy-MM"
+            },
+            "aggs": {
+                "total_views": {"sum": {"field": "views"}}
+            }
+        }
+    },
+    "size": 0
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for bucket in response['aggregations']['posts_over_time']['buckets']:
+    print(f"Month: {bucket['key_as_string']}")
+    print(f"  Posts: {bucket['doc_count']}")
+    print(f"  Total views: {bucket['total_views']['value']}")
+```
+
+## Highlighting
+
+Highlight matching terms in results:
+
+```{python}
+#| echo: true
+#| eval: false
+
+query = {
+    "query": {
+        "match": {
+            "content": "elasticsearch performance"
+        }
+    },
+    "highlight": {
+        "fields": {
+            "content": {
+                "fragment_size": 150,
+                "number_of_fragments": 3
+            }
+        },
+        "pre_tags": ["<strong>"],
+        "post_tags": ["</strong>"]
+    }
+}
+
+response = es.search(index="blog_posts", body=query)
+
+for hit in response['hits']['hits']:
+    print(f"Title: {hit['_source']['title']}")
+    if 'highlight' in hit:
+        for fragment in hit['highlight']['content']:
+            print(f"  ...{fragment}...")
+```
+
+## Advanced Queries
+
+### Function Score Query
+
+Boost results based on custom functions:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Boost popular and recent documents
+query = {
+    "query": {
+        "function_score": {
+            "query": {"match": {"content": "elasticsearch"}},
+            "functions": [
+                {
+                    # Boost by views
+                    "field_value_factor": {
+                        "field": "views",
+                        "modifier": "log1p",
+                        "factor": 0.1
+                    }
+                },
+                {
+                    # Boost recent documents
+                    "gauss": {
+                        "published_date": {
+                            "origin": "now",
+                            "scale": "30d",
+                            "decay": 0.5
+                        }
+                    }
+                }
+            ],
+            "score_mode": "multiply",
+            "boost_mode": "multiply"
+        }
+    }
+}
+```
+
+### Nested Query
+
+Query nested objects:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Find posts with comments by specific author rated 5
+query = {
+    "query": {
+        "nested": {
+            "path": "comments",
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"comments.author": "user1"}},
+                        {"term": {"comments.rating": 5}}
+                    ]
+                }
+            }
+        }
+    }
+}
+```
+
+### Scripting
+
+Use Painless scripts for dynamic queries:
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Custom scoring with script
+query = {
+    "query": {
+        "script_score": {
+            "query": {"match_all": {}},
+            "script": {
+                "source": "Math.log(2 + doc['views'].value) * params.boost",
+                "params": {"boost": 1.5}
+            }
+        }
+    }
+}
+```
+
+## ES|QL: Elasticsearch Query Language
+
+ES|QL is a new piped query language (similar to SQL):
+
+```{python}
+#| echo: true
+#| eval: false
+
+# ES|QL query (if available in your Elasticsearch version)
+esql_query = """
+FROM blog_posts
+| WHERE published_date > NOW() - 30 DAYS
+| STATS avg_views = AVG(views) BY author
+| WHERE avg_views > 1000
+| SORT avg_views DESC
+| LIMIT 10
+"""
+
+# Execute ES|QL query
+response = es.esql.query(query=esql_query)
+```
+
+:::{.callout-note}
+## ES|QL Availability
+ES|QL is available in Elasticsearch 8.11+ and provides a more SQL-like syntax for queries and aggregations.
+:::
+
+## Practical Search Examples
+
+### Example 1: Blog Search with Filters
+
+```{python}
+#| echo: true
+#| eval: false
+
+def search_blog_posts(keyword, author=None, min_views=None, tags=None):
+    """Comprehensive blog search with filters"""
+
+    must_clauses = []
+    filter_clauses = []
+
+    # Keyword search
+    if keyword:
+        must_clauses.append({
+            "multi_match": {
+                "query": keyword,
+                "fields": ["title^2", "content"]
+            }
+        })
+
+    # Filters (cached, no scoring)
+    if author:
+        filter_clauses.append({"term": {"author": author}})
+
+    if min_views:
+        filter_clauses.append({"range": {"views": {"gte": min_views}}})
+
+    if tags:
+        filter_clauses.append({"terms": {"tags": tags}})
+
+    query = {
+        "query": {
+            "bool": {
+                "must": must_clauses if must_clauses else [{"match_all": {}}],
+                "filter": filter_clauses
+            }
+        },
+        "sort": [
+            {"_score": {"order": "desc"}},
+            {"views": {"order": "desc"}}
+        ]
+    }
+
+    return es.search(index="blog_posts", body=query)
+
+# Example usage
+results = search_blog_posts(
+    keyword="elasticsearch performance",
+    min_views=1000,
+    tags=["tutorial"]
+)
+```
+
+### Example 2: Analytics Dashboard
+
+```{python}
+#| echo: true
+#| eval: false
+
+def get_blog_analytics():
+    """Comprehensive blog analytics"""
+
+    query = {
+        "aggs": {
+            "total_views": {"sum": {"field": "views"}},
+            "avg_views": {"avg": {"field": "views"}},
+
+            "top_authors": {
+                "terms": {"field": "author", "size": 5},
+                "aggs": {
+                    "total_views": {"sum": {"field": "views"}},
+                    "avg_views": {"avg": {"field": "views"}}
+                }
+            },
+
+            "popular_tags": {
+                "terms": {"field": "tags", "size": 10},
+                "aggs": {"avg_views": {"avg": {"field": "views"}}}
+            },
+
+            "posts_timeline": {
+                "date_histogram": {
+                    "field": "published_date",
+                    "calendar_interval": "month"
+                },
+                "aggs": {"monthly_views": {"sum": {"field": "views"}}}
+            }
+        },
+        "size": 0
+    }
+
+    return es.search(index="blog_posts", body=query)
+
+# Get and display analytics
+analytics = get_blog_analytics()['aggregations']
+
+print(f"Total views: {analytics['total_views']['value']:.0f}")
+print(f"Average views: {analytics['avg_views']['value']:.2f}\n")
+
+print("Top Authors:")
+for bucket in analytics['top_authors']['buckets']:
+    print(f"  {bucket['key']}: {bucket['total_views']['value']:.0f} views")
+```
+
+## Query Performance Tips
+
+:::{.callout-tip}
+## Optimization Tips
+
+1. **Use filters for exact matches** - They're cached and faster
+2. **Limit result size** - Don't fetch more than needed
+3. **Use source filtering** - Only return necessary fields
+4. **Avoid wildcards at beginning** - `*term` is very slow
+5. **Use scroll API for large exports** - Better than deep pagination
+6. **Combine aggregations** - Multiple aggs in one query is efficient
+7. **Use filter context** - No scoring overhead
+:::
+
+```{python}
+#| echo: true
+#| eval: false
+
+# Optimized query example
+optimized_query = {
+    "query": {
+        "bool": {
+            "must": [{"match": {"content": "elasticsearch"}}],  # Scored
+            "filter": [  # Cached, not scored
+                {"term": {"status": "published"}},
+                {"range": {"published_date": {"gte": "2024-01-01"}}}
+            ]
+        }
+    },
+    "_source": ["title", "author", "views"],  # Only needed fields
+    "size": 10
+}
+```
+
+## Summary
+
+Key query language concepts:
+
+1. **Query DSL**: Flexible JSON-based query syntax
+2. **Full-text Search**: Match, multi-match, phrase queries
+3. **Term Queries**: Exact matching on keyword fields
+4. **Boolean Queries**: Combine queries with logic
+5. **Aggregations**: Analytics and data summarization
+6. **Advanced Queries**: Function score, nested, scripting
+7. **ES|QL**: Modern SQL-like query language
+
+Mastering these enables:
+- Precise search results
+- Complex data analysis
+- Performance optimization
+- Rich user experiences
+
+:::{.callout-tip}
+## Next Steps
+Now that you can query Elasticsearch effectively, let's explore Kibana for visualizing and exploring your data!
+:::
+
+---
+
+## Download Notebook
+
+:::{.callout-note}
+## Jupyter Notebook
+Download this section as an interactive Jupyter notebook to run the examples on your own machine.
+
+[Download query-languages.ipynb](query-languages.ipynb){.btn .btn-primary download="query-languages.ipynb"}
+:::
